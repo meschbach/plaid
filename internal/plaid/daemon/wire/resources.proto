@@ -1,0 +1,103 @@
+syntax = "proto3";
+
+package wire;
+option go_package = "git.meschbach.com/mee/platform.git/plaid/internal/plaid/daemon/wire";
+
+import "google/protobuf/timestamp.proto";
+
+service ResourceController {
+  rpc Create(CreateResourceIn) returns (CreateResourceOut) {}
+  rpc Get(GetIn) returns (GetOut){}
+  rpc GetStatus(GetStatusIn) returns (GetStatusOut) {}
+  rpc GetEvents(GetEventsIn) returns (GetEventsOut) {}
+  rpc Watcher(stream WatcherEventIn) returns (stream WatcherEventOut) {}
+  rpc List(ListIn) returns (ListOut) {}
+}
+
+message CreateResourceIn {
+  Meta target = 1;
+  bytes spec = 2;
+}
+
+message CreateResourceOut {
+}
+
+enum EventLevel {
+  Error = 0;
+  Info = 1;
+  All = 2;
+}
+
+message Event {
+  google.protobuf.Timestamp when = 1;
+  EventLevel level = 2;
+  //todo: would prefer not to render these within the daemon...but don't have a better way right now to send out the args
+  string rendered = 3;
+}
+
+message Meta {
+  Type kind = 1;
+  string name = 2;
+}
+
+message Type {
+  string kind = 1;
+  string version = 2;
+}
+
+message GetIn {
+  Meta target = 1;
+}
+
+message GetOut {
+  bool exists = 1;
+  bytes spec = 2;
+}
+
+message GetStatusIn {
+  Meta target = 1;
+}
+
+message GetStatusOut {
+  bool exists = 1;
+  bytes status = 2;
+}
+
+//WatcherEventIn is a client request to the service to modify a watcher
+message WatcherEventIn {
+  uint64 tag = 1;
+  optional Type OnType = 2;
+  optional Meta OnResource = 3;
+  //If exists and set to the true the watcher should be destroyed for the tag in question.
+  optional bool delete = 4;
+}
+
+message WatcherEventOut {
+  uint64 tag = 1;
+  Meta ref = 2;
+  enum Op {
+    Created = 0;
+    Updated = 1;
+    UpdatedStatus = 2;
+    Deleted = 3;
+  }
+  Op op = 3;
+}
+
+message ListIn {
+  Type type = 1;
+}
+
+message ListOut {
+  repeated Meta ref = 1;
+}
+
+message GetEventsIn {
+  Meta ref = 1;
+  EventLevel level = 2;
+}
+
+message GetEventsOut {
+  repeated Event events = 1;
+  bool exists = 2;
+}

@@ -1,0 +1,9 @@
+{
+  "one-shot": true,
+  "name": "service-b",
+  "build": {
+    "exec": "go build -o service ./cmd"
+  },
+  "run": "./service",
+  "requires": ["service-a"]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "service-a",
+  "build": {
+    "exec": "go build -o service ./cmd",
+    "watch": ["cmd"]
+  },
+  "run": "./service",
+  "liveness": {
+    "http": "/ops/liveness"
+  },
+  "ports": {
+    "http": 9123
+  }
+}

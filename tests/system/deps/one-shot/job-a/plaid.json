@@ -1,0 +1,5 @@
+{
+  "one-shot": true,
+  "name": "job-a",
+  "run": "echo job-a"
+}

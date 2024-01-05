@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package logger;
+option go_package = "git.meschbach.com/mee/platform.git/plaid/ipc/grpc/logger";
+
+import "google/protobuf/timestamp.proto";
+
+service V1 {
+  rpc RegisterDrain(RegisterDrainRequest) returns (RegisterDrainReply);
+  rpc ReadDrain(ReadDrainRequest) returns (ReadDrainReply);
+  rpc CloseDrain(CloseDrainRequest) returns (CloseDrainReply);
+  rpc WatchDrain(stream WatchDrainRequest) returns (stream WatchDrainEvent);
+}
+
+message RegisterDrainRequest {
+  string name = 1;
+}
+
+message RegisterDrainReply {
+  int64 drainID = 1;
+  int64 initialOffset = 2;
+}
+
+message ReadDrainRequest {
+  int64 drainID = 1;
+  int64 offset = 2;
+  int32 count = 3;
+}
+
+message ReadDrainReply {
+  message LogEvent {
+    int64 offset = 1;
+    google.protobuf.Timestamp when = 2;
+    string text = 3;
+    LogOrigin origin = 4;
+  }
+
+  repeated LogEvent entries = 1;
+  int64 beginningOffset = 3;
+  int64 nextOffset = 4;
+}
+
+message CloseDrainRequest {
+    int64 drainID = 1;
+}
+
+message CloseDrainReply {
+  int64 drainID = 1;
+}
+
+message WatchDrainRequest {
+  optional int64 drainID = 1;
+  optional bool close = 2;
+}
+
+message WatchDrainEvent {
+  int64 offset = 1;
+}
+
+message LogOrigin {
+  string kind = 1;
+  string version = 2;
+  string name = 3;
+  string stream = 4;
+}

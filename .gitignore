@@ -1,0 +1,9 @@
+.idea/
+/plaid-client
+/plaid-daemon
+# hosted version of plaid for dogfooding itself
+/delegate
+tests/system/plaid-client
+tests/system/plaid-daemon
+tests/system/deps/services/**/service
+internal/daemon/meta/proto/*.pb.go
