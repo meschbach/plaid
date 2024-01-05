@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/meschbach/plaid/internal/plaid/daemon"
-	"github.com/meschbach/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/resources"
 )
 
 type ReportProgress[T any] struct {

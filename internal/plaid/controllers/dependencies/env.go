@@ -2,7 +2,7 @@ package dependencies
 
 import (
 	"context"
-	"github.com/meschbach/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/resources"
 )
 
 type Env struct {

@@ -1,6 +1,6 @@
 package mock
 
-import "github.com/meschbach/plaid/internal/plaid/resources"
+import "github.com/meschbach/plaid/resources"
 
 // todo: document usage
 type engineState struct {

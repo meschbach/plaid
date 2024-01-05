@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/meschbach/plaid/internal/plaid/daemon/wire"
-	"github.com/meschbach/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/resources"
 	"github.com/thejerf/suture/v4"
 )
 

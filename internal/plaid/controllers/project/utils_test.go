@@ -5,7 +5,7 @@ import (
 	"errors"
 	"github.com/meschbach/plaid/internal/plaid/controllers/buildrun"
 	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
-	"github.com/meschbach/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/resources"
 	"time"
 )
 

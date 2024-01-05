@@ -3,13 +3,13 @@ package mock
 import (
 	"context"
 	"errors"
-	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
-	"github.com/meschbach/plaid/internal/plaid/controllers/logdrain"
-	"github.com/meschbach/plaid/internal/plaid/resources"
-	"github.com/meschbach/plaid/internal/plaid/resources/operator"
 	"github.com/meschbach/go-junk-bucket/pkg/emitter"
 	"github.com/meschbach/go-junk-bucket/pkg/reactors"
 	"github.com/meschbach/go-junk-bucket/pkg/reactors/futures"
+	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
+	"github.com/meschbach/plaid/internal/plaid/controllers/logdrain"
+	"github.com/meschbach/plaid/resources"
+	"github.com/meschbach/plaid/resources/operator"
 	"go.opentelemetry.io/otel/attribute"
 	"time"
 )

@@ -2,7 +2,7 @@ package operator
 
 import (
 	"context"
-	"github.com/meschbach/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/resources"
 )
 
 type HealthyDependenciesMemoization struct {

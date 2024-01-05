@@ -2,11 +2,11 @@ package logdrain
 
 import (
 	"context"
-	"github.com/meschbach/plaid/internal/junk"
-	"github.com/meschbach/plaid/internal/plaid/resources"
-	"github.com/meschbach/plaid/internal/plaid/resources/operator"
 	"github.com/go-faker/faker/v4"
 	"github.com/meschbach/go-junk-bucket/pkg/streams"
+	"github.com/meschbach/plaid/internal/junk"
+	"github.com/meschbach/plaid/resources"
+	"github.com/meschbach/plaid/resources/operator"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/attribute"

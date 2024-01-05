@@ -3,7 +3,7 @@ package httpProbe
 import (
 	"context"
 	"fmt"
-	"github.com/meschbach/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/resources"
 	"net/http"
 	"time"
 )

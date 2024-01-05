@@ -3,7 +3,7 @@ package probes
 import (
 	"context"
 	"github.com/meschbach/plaid/internal/plaid/httpProbe"
-	"github.com/meschbach/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/resources"
 )
 
 type TemplateEnv struct {

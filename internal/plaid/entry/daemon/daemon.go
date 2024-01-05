@@ -5,10 +5,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/meschbach/go-junk-bucket/pkg/observability"
 	"github.com/meschbach/plaid/internal/plaid/daemon"
 	"github.com/meschbach/plaid/internal/plaid/ephemeral"
-	"github.com/meschbach/plaid/internal/plaid/resources"
-	"github.com/meschbach/go-junk-bucket/pkg/observability"
+	"github.com/meschbach/plaid/resources"
 	"github.com/thejerf/suture/v4"
 	"time"
 )

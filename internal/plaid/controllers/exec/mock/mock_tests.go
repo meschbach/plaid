@@ -2,11 +2,11 @@ package mock
 
 import (
 	"context"
-	"github.com/meschbach/plaid/internal/plaid/controllers/logdrain"
-	"github.com/meschbach/plaid/internal/plaid/resources"
 	"github.com/meschbach/go-junk-bucket/pkg/emitter"
 	"github.com/meschbach/go-junk-bucket/pkg/reactors"
 	"github.com/meschbach/go-junk-bucket/pkg/task"
+	"github.com/meschbach/plaid/internal/plaid/controllers/logdrain"
+	"github.com/meschbach/plaid/resources"
 )
 
 func With[Outer any](ctx context.Context, replyTo reactors.Boundary[Outer], m *Proc, perform func(ctx context.Context, m *Proc) error) *task.Promise[bool] {

@@ -2,7 +2,7 @@ package httpProbe
 
 import (
 	"context"
-	"github.com/meschbach/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/resources"
 	"github.com/thejerf/suture/v4"
 	"time"
 )

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
-	"github.com/meschbach/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/resources"
 )
 
 // todo think about merging with buildrun.builderState as they effectively do the same thing

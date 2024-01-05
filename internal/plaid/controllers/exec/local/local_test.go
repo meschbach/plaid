@@ -2,13 +2,13 @@ package local
 
 import (
 	"context"
-	"github.com/meschbach/plaid/internal/junk"
-	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
-	"github.com/meschbach/plaid/internal/plaid/controllers/logdrain"
-	"github.com/meschbach/plaid/internal/plaid/resources"
 	"github.com/go-faker/faker/v4"
 	"github.com/meschbach/go-junk-bucket/pkg/reactors"
 	"github.com/meschbach/go-junk-bucket/pkg/streams"
+	"github.com/meschbach/plaid/internal/junk"
+	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
+	"github.com/meschbach/plaid/internal/plaid/controllers/logdrain"
+	"github.com/meschbach/plaid/resources"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thejerf/suture/v4"

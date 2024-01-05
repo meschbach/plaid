@@ -3,11 +3,11 @@ package mock
 import (
 	"context"
 	"errors"
+	"github.com/meschbach/go-junk-bucket/pkg/streams"
 	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
 	"github.com/meschbach/plaid/internal/plaid/controllers/logdrain"
-	"github.com/meschbach/plaid/internal/plaid/resources"
-	"github.com/meschbach/plaid/internal/plaid/resources/operator"
-	"github.com/meschbach/go-junk-bucket/pkg/streams"
+	"github.com/meschbach/plaid/resources"
+	"github.com/meschbach/plaid/resources/operator"
 )
 
 type alpha1Ops struct {

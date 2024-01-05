@@ -2,8 +2,8 @@ package project
 
 import (
 	"context"
-	"github.com/meschbach/plaid/internal/plaid/resources"
-	"github.com/meschbach/plaid/internal/plaid/resources/operator"
+	"github.com/meschbach/plaid/resources"
+	"github.com/meschbach/plaid/resources/operator"
 )
 
 type Controller struct {

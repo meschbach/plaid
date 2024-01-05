@@ -3,9 +3,9 @@ package daemon
 import (
 	"context"
 	"encoding/json"
-	"github.com/meschbach/plaid/internal/plaid/daemon/wire"
-	"github.com/meschbach/plaid/internal/plaid/resources"
 	"github.com/go-faker/faker/v4"
+	"github.com/meschbach/plaid/internal/plaid/daemon/wire"
+	"github.com/meschbach/plaid/resources"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"

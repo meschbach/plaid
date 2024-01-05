@@ -3,7 +3,7 @@ package dependencies
 import (
 	"context"
 	"fmt"
-	"github.com/meschbach/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/resources"
 )
 
 // DependencyState will manage a single Dependency to monitor for readiness

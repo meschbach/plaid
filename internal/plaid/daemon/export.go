@@ -1,6 +1,6 @@
 package daemon
 
-import "github.com/meschbach/plaid/internal/plaid/resources"
+import "github.com/meschbach/plaid/resources"
 
 func ExportResources(storage *resources.Client) *ResourceService {
 	service := &ResourceService{

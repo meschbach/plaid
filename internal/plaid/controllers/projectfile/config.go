@@ -6,7 +6,7 @@ import (
 	"github.com/meschbach/plaid/internal/plaid/controllers/probes"
 	"github.com/meschbach/plaid/internal/plaid/controllers/project"
 	"github.com/meschbach/plaid/internal/plaid/httpProbe"
-	"github.com/meschbach/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/resources"
 )
 
 type Configuration struct {

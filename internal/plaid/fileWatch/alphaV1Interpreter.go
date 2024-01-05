@@ -3,8 +3,8 @@ package fileWatch
 import (
 	"context"
 	"errors"
-	"github.com/meschbach/plaid/internal/plaid/resources"
-	"github.com/meschbach/plaid/internal/plaid/resources/operator"
+	"github.com/meschbach/plaid/resources"
+	"github.com/meschbach/plaid/resources/operator"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"path/filepath"

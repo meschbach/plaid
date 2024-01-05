@@ -3,10 +3,10 @@ package registry
 import (
 	"context"
 	"errors"
-	"github.com/meschbach/plaid/internal/plaid/controllers/projectfile"
-	"github.com/meschbach/plaid/internal/plaid/resources"
-	"github.com/meschbach/plaid/internal/plaid/resources/operator"
 	"github.com/meschbach/go-junk-bucket/pkg/files"
+	"github.com/meschbach/plaid/internal/plaid/controllers/projectfile"
+	"github.com/meschbach/plaid/resources"
+	"github.com/meschbach/plaid/resources/operator"
 	"path"
 	"path/filepath"
 )

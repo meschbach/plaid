@@ -2,11 +2,11 @@ package logdrain
 
 import (
 	"context"
-	"github.com/meschbach/plaid/internal/plaid/resources"
 	"github.com/meschbach/go-junk-bucket/pkg/emitter"
 	"github.com/meschbach/go-junk-bucket/pkg/reactors"
 	"github.com/meschbach/go-junk-bucket/pkg/reactors/futures"
 	"github.com/meschbach/go-junk-bucket/pkg/streams"
+	"github.com/meschbach/plaid/resources"
 )
 
 type Sources interface {

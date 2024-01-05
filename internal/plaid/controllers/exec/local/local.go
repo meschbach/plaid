@@ -2,7 +2,7 @@ package local
 
 import (
 	"github.com/meschbach/plaid/internal/plaid/controllers/logdrain"
-	"github.com/meschbach/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/resources"
 	"github.com/thejerf/suture/v4"
 )
 

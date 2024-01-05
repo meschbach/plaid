@@ -3,11 +3,11 @@ package logger
 import (
 	"context"
 	"errors"
-	"github.com/meschbach/plaid/internal/plaid/controllers/logdrain"
-	"github.com/meschbach/plaid/internal/plaid/resources"
 	"github.com/meschbach/go-junk-bucket/pkg/reactors"
 	"github.com/meschbach/go-junk-bucket/pkg/streams"
 	"github.com/meschbach/go-junk-bucket/pkg/task"
+	"github.com/meschbach/plaid/internal/plaid/controllers/logdrain"
+	"github.com/meschbach/plaid/resources"
 	"sync"
 )
 

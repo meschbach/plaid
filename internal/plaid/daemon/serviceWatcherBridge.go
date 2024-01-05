@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/meschbach/plaid/internal/plaid/daemon/wire"
-	"github.com/meschbach/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/resources"
 )
 
 // watcherBridge is the service side drain for a specific watch.

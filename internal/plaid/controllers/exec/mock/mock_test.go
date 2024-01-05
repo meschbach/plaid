@@ -2,10 +2,10 @@ package mock
 
 import (
 	"context"
+	"github.com/go-faker/faker/v4"
 	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
 	"github.com/meschbach/plaid/internal/plaid/controllers/logdrain"
-	"github.com/meschbach/plaid/internal/plaid/resources"
-	"github.com/go-faker/faker/v4"
+	"github.com/meschbach/plaid/resources"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"

@@ -1,7 +1,7 @@
 package registry
 
 import (
-	"github.com/meschbach/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/resources"
 	"time"
 )
 
