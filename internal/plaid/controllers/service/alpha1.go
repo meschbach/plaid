@@ -3,10 +3,10 @@ package service
 import (
 	"context"
 	"errors"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/controllers/exec"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/controllers/probes"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/resources"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/resources/operator"
+	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
+	"github.com/meschbach/plaid/internal/plaid/controllers/probes"
+	"github.com/meschbach/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/internal/plaid/resources/operator"
 )
 
 var Alpha1 = resources.Type{

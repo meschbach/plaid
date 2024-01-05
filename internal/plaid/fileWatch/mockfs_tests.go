@@ -3,7 +3,7 @@ package fileWatch
 import (
 	"context"
 	"fmt"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/internal/plaid/resources"
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"

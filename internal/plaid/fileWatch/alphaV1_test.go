@@ -2,8 +2,8 @@ package fileWatch
 
 import (
 	"context"
-	"git.meschbach.com/mee/platform.git/plaid/internal/junk"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/internal/junk"
+	"github.com/meschbach/plaid/internal/plaid/resources"
 	"github.com/meschbach/go-junk-bucket/testing/faking"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"

@@ -3,8 +3,8 @@ package daemon
 import (
 	"context"
 	"encoding/json"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/daemon/wire"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/internal/plaid/daemon/wire"
+	"github.com/meschbach/plaid/internal/plaid/resources"
 	"github.com/go-faker/faker/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

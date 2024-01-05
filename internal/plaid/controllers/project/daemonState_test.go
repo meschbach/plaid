@@ -2,8 +2,8 @@ package project
 
 import (
 	"context"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/controllers/service"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/internal/plaid/controllers/service"
+	"github.com/meschbach/plaid/internal/plaid/resources"
 	"github.com/go-faker/faker/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

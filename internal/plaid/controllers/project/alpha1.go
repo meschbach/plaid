@@ -3,8 +3,8 @@ package project
 import (
 	"context"
 	"errors"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/resources"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/resources/operator"
+	"github.com/meschbach/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/internal/plaid/resources/operator"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )

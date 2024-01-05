@@ -3,7 +3,7 @@ package dependencies
 import (
 	"context"
 	"errors"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/internal/plaid/resources"
 )
 
 // State manages a set of named dependencies

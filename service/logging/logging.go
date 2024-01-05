@@ -1,9 +1,9 @@
 package logging
 
 import (
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/controllers/logdrain"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/resources"
-	"git.meschbach.com/mee/platform.git/plaid/ipc/grpc/logger"
+	"github.com/meschbach/plaid/internal/plaid/controllers/logdrain"
+	"github.com/meschbach/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/ipc/grpc/logger"
 	"github.com/thejerf/suture/v4"
 )
 

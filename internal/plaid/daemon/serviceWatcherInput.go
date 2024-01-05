@@ -2,7 +2,7 @@ package daemon
 
 import (
 	"context"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/daemon/wire"
+	"github.com/meschbach/plaid/internal/plaid/daemon/wire"
 	"github.com/thejerf/suture/v4"
 	"io"
 )

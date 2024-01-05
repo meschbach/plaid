@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 	"fmt"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/controllers/exec"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
+	"github.com/meschbach/plaid/internal/plaid/resources"
 )
 
 // todo think about merging with buildrun.builderState as they effectively do the same thing

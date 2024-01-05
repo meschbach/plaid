@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/daemon"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/internal/plaid/daemon"
+	"github.com/meschbach/plaid/internal/plaid/resources"
 )
 
 type ReportProgress[T any] struct {

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/entry/daemon"
+	"github.com/meschbach/plaid/internal/plaid/entry/daemon"
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 	"os"

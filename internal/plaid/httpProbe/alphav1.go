@@ -1,6 +1,6 @@
 package httpProbe
 
-import "git.meschbach.com/mee/platform.git/plaid/internal/plaid/resources"
+import "github.com/meschbach/plaid/internal/plaid/resources"
 
 type AlphaV1Spec struct {
 	Enabled  bool   `json:"enabled"`

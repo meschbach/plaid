@@ -2,7 +2,7 @@ package resources
 
 import (
 	"context"
-	"git.meschbach.com/mee/platform.git/plaid/internal/junk"
+	"github.com/meschbach/plaid/internal/junk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"

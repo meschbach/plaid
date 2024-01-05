@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/controllers/probes"
+	"github.com/meschbach/plaid/internal/plaid/controllers/probes"
 )
 
 type readinessProbeStep uint8

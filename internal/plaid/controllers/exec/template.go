@@ -2,7 +2,7 @@ package exec
 
 import (
 	"context"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/internal/plaid/resources"
 	"os"
 )
 

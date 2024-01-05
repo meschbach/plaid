@@ -3,9 +3,9 @@ package project
 import (
 	"context"
 	"errors"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/controllers/buildrun"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/controllers/exec"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/internal/plaid/controllers/buildrun"
+	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
+	"github.com/meschbach/plaid/internal/plaid/resources"
 	"time"
 )
 

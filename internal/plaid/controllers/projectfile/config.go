@@ -2,11 +2,11 @@ package projectfile
 
 import (
 	"encoding/json"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/controllers/exec"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/controllers/probes"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/controllers/project"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/httpProbe"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
+	"github.com/meschbach/plaid/internal/plaid/controllers/probes"
+	"github.com/meschbach/plaid/internal/plaid/controllers/project"
+	"github.com/meschbach/plaid/internal/plaid/httpProbe"
+	"github.com/meschbach/plaid/internal/plaid/resources"
 )
 
 type Configuration struct {

@@ -1,4 +1,4 @@
-module git.meschbach.com/mee/platform.git/plaid
+module github.com/meschbach/plaid
 
 go 1.21
 

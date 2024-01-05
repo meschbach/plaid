@@ -2,7 +2,7 @@ package operator
 
 import (
 	"context"
-	"git.meschbach.com/mee/platform.git/plaid/internal/plaid/resources"
+	"github.com/meschbach/plaid/internal/plaid/resources"
 )
 
 // Observatory watches a set of resources for reconciliation and derives state.
