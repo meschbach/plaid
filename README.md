@@ -12,6 +12,14 @@ existing tools to concentrate on orchestration of services and systems.
 * 0.2.0 - Stabilizing race conditions and exploring state management.
 * 0.1.0 - Initial proof of concept
 
+# Developing
+* Run `./test-daemon.sh`.  This will test the system then build binaries into `test/system` as `plaid-client` and
+`plaid-daemon`.
+* Run `./test/system/plaid-daemon run` in a terminal
+* Run `./test/system/plaid-client up` in a directory to pull start.
+
+Check out the running test cases under `test-daemon.sh` for more examples of how to run things!
+
 # Roadmap
 This is really just a list of features which I would like to implement at some point.
 
