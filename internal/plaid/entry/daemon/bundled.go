@@ -2,13 +2,13 @@ package daemon
 
 import (
 	"context"
+	"github.com/meschbach/plaid/controllers/filewatch"
 	"github.com/meschbach/plaid/internal/plaid/controllers/buildrun"
 	localexec "github.com/meschbach/plaid/internal/plaid/controllers/exec/local"
 	"github.com/meschbach/plaid/internal/plaid/controllers/logdrain"
 	"github.com/meschbach/plaid/internal/plaid/controllers/project"
 	"github.com/meschbach/plaid/internal/plaid/controllers/projectfile"
 	"github.com/meschbach/plaid/internal/plaid/controllers/service"
-	"github.com/meschbach/plaid/internal/plaid/fileWatch"
 	"github.com/meschbach/plaid/internal/plaid/httpProbe"
 	"github.com/meschbach/plaid/internal/plaid/registry"
 	"github.com/meschbach/plaid/resources"
@@ -73,7 +73,7 @@ func (b *bundledServices) attachV0_1_0() {
 	b.Add(httpProbe.NewController(b.resources, probesTree))
 	//file watches
 	fileWatchingSubtree := suture.NewSimple("files-watchers")
-	fileWatch.NewFileWatch(fileWatchingSubtree, b.resources)
+	filewatch.NewFileWatch(fileWatchingSubtree, b.resources)
 	b.Add(fileWatchingSubtree)
 
 	//Legacy services which should be replaced

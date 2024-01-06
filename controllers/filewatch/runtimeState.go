@@ -1,4 +1,4 @@
-package fileWatch
+package filewatch
 
 import (
 	"context"

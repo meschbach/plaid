@@ -1,4 +1,4 @@
-package fileWatch
+package filewatch
 
 import (
 	"go.opentelemetry.io/otel"
