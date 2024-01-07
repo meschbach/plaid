@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -104,10 +103,8 @@ func (t *testResourceManager) Serve(ctx context.Context) error {
 	for {
 		select {
 		case sync := <-t.allSeen:
-			fmt.Printf("[test-recorder]\tDispatching seen changes\n")
 			sync <- t.seenChanges
 		case change := <-watch:
-			fmt.Printf("[test-recorder]\tSaw %#v\n", change)
 			t.seenChanges = append(t.seenChanges, change)
 		case <-ctx.Done():
 			return nil
