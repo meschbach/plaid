@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"github.com/meschbach/go-junk-bucket/testing/faking"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thejerf/suture/v4"
@@ -41,7 +42,10 @@ func TestWatcherSubsystem(t *testing.T) {
 
 		t.Run("When listening for status updates on a resource", func(t *testing.T) {
 			consumedCount := 0
-			watchingRef := FakeMeta()
+			resourceNames := faking.NewUniqueWords()
+			watchingRef := FakeMeta(WithNamingDomain(func() string {
+				return resourceNames.Next()
+			}))
 
 			w, err := client.Watcher(ctx)
 			require.NoError(t, err)
@@ -54,7 +58,9 @@ func TestWatcherSubsystem(t *testing.T) {
 			t.Run("And a change to an unrelated resource of the same resource occurs", func(t *testing.T) {
 				beforeCount := consumedCount
 
-				other := FakeMetaOf(watchingRef.Type)
+				other := FakeMetaOf(watchingRef.Type, WithNamingDomain(func() string {
+					return resourceNames.Next()
+				}))
 				require.NoError(t, client.Create(ctx, other, ExampleResource{Enabled: false}))
 				require.NoError(t, digestAllPending(ctx, w))
 
