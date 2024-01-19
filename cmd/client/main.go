@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/meschbach/go-junk-bucket/pkg/observability"
 	"github.com/meschbach/plaid/client"
+	"github.com/meschbach/plaid/client/get"
 	"github.com/meschbach/plaid/internal/plaid/daemon"
 	"github.com/meschbach/plaid/internal/plaid/entry/client/usecase"
 	"github.com/meschbach/plaid/internal/plaid/ephemeral"
@@ -81,14 +82,21 @@ func upCommand(rt *client.Runtime) *cobra.Command {
 }
 
 func getCommand(rt *client.Runtime) *cobra.Command {
-	return &cobra.Command{
+	opts := &get.Options{}
+	cmd := &cobra.Command{
 		Use:   "get <kind> <version> <name>",
 		Short: "Retrieves a resource",
 		Args:  cobra.ExactArgs(3),
 		RunE: runCommand(rt, func(ctx context.Context, rt *client.Runtime, client *daemon.Daemon, args []string) error {
-			return usecase.Get(ctx, client, args[0], args[1], args[2])
+			opts.Kind = args[0]
+			opts.Version = args[1]
+			opts.Resource = args[2]
+			return get.Perform(ctx, client, *opts)
 		}),
 	}
+	f := cmd.Flags()
+	f.BoolVarP(&opts.PrettyJSON, "pretty-json", "p", false, "pretty print JSON")
+	return cmd
 }
 
 func runCommand(rt *client.Runtime, fn func(ctx context.Context, rt *client.Runtime, d *daemon.Daemon, args []string) error) func(*cobra.Command, []string) error {
