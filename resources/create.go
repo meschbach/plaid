@@ -3,8 +3,10 @@ package resources
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -61,4 +63,78 @@ func WithAnnotations(annotations map[string]string) CreateOpt {
 		}
 		op.annotations = annotations
 	})
+}
+
+func (c *Client) Create(parent context.Context, meta Meta, resource any, opts ...CreateOpt) error {
+	jsonEncodedResource, err := json.Marshal(resource)
+	if err != nil {
+		return err
+	}
+
+	return c.CreateBytes(parent, meta, jsonEncodedResource, opts...)
+}
+
+type CreateOpt interface {
+	apply(op *createOp)
+}
+
+type createOptFuncWrapper struct {
+	f func(op *createOp)
+}
+
+func (c *createOptFuncWrapper) apply(o *createOp) {
+	c.f(o)
+}
+
+func createOptFunc(f func(op *createOp)) CreateOpt {
+	return &createOptFuncWrapper{f}
+}
+
+func (c *Client) CreateBytes(ctx context.Context, meta Meta, resource []byte, opts ...CreateOpt) error {
+	span := trace.SpanFromContext(ctx)
+	resultSignal, has := ctx.Value(signalCreateChannel).(chan createReply)
+	closeChannel := false
+	if !has {
+		resultSignal = make(chan createReply)
+		closeChannel = true
+	}
+	op := &createOp{
+		meta:          meta,
+		spec:          resource,
+		replyTo:       resultSignal,
+		parentContext: trace.SpanContextFromContext(ctx),
+		closeChannel:  closeChannel,
+	}
+	for _, opt := range opts {
+		opt.apply(op)
+	}
+
+	select {
+	case c.dataPlane <- op:
+	case <-ctx.Done():
+		span.SetStatus(codes.Error, "context done before create sent")
+		return ctx.Err()
+	}
+	select {
+	case result := <-resultSignal:
+		if result.problem != nil {
+			span.SetStatus(codes.Error, result.problem.Error())
+			span.RecordError(result.problem)
+		}
+		return result.problem
+	case <-ctx.Done():
+		span.SetStatus(codes.Error, "context done before create finished")
+		return ctx.Err()
+	}
+}
+
+const signalCreateChannel = "plaid.resource.create"
+
+func WithFastCreate(parent context.Context) context.Context {
+	create := make(chan createReply)
+	go func() {
+		<-parent.Done()
+		close(create)
+	}()
+	return context.WithValue(parent, signalCreateChannel, create)
 }
