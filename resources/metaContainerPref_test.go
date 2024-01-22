@@ -25,11 +25,13 @@ func BenchmarkMetaContainer(b *testing.B) {
 	c := NewMetaContainer[node]()
 	b.ResetTimer()
 
-	for _, nodeRef := range refs {
-		_, has := c.Find(nodeRef)
-		if has {
-			continue
+	b.Run("Upsert", func(b *testing.B) {
+		for _, nodeRef := range refs {
+			_, has := c.Find(nodeRef)
+			if has {
+				continue
+			}
+			c.Upsert(nodeRef, &node{})
 		}
-		c.Upsert(nodeRef, &node{})
-	}
+	})
 }
