@@ -7,19 +7,17 @@ import (
 
 const Kind = "file-watch.plaid.meschbach.com"
 
-var AlphaV1Type = resources.Type{
+var Alpha1 = resources.Type{
 	Kind:    Kind,
-	Version: "alphaV1",
+	Version: "alpha1",
 }
 
-type AlphaV1Spec struct {
+type Alpha1Spec struct {
 	//AbsolutePath is the root file system location to observe
-	AbsolutePath string `json:"absolute-path"`
-	//Recursive indicates the watch would like to monitor the target directory and all subdirectories.
-	Recursive bool
+	AbsolutePath string `json:"absolute-Path"`
 }
 
-type AlphaV1Status struct {
+type Alpha1Status struct {
 	Watching   bool       `json:"watching,omitempty"`
 	LastChange *time.Time `json:"last-change,omitempty"`
 }

@@ -3,23 +3,23 @@ package filewatch
 import (
 	"context"
 	"go.opentelemetry.io/otel/trace"
+	"time"
 )
 
-type filesystem interface {
-	//ListDirectories recursively lists directories from the given base path
-	ListDirectories(path string) ([]string, error)
+type FileSystem interface {
 	Watch(ctx context.Context, path string) error
-	ChangeFeed() <-chan changeEvent
+	ChangeFeed() <-chan ChangeEvent
 }
 
-type fsChangeEventKind uint8
+type ChangeKind uint8
 
 const (
-	fsFileModified fsChangeEventKind = iota
+	FileModified ChangeKind = iota
 )
 
-type changeEvent struct {
-	path    string
-	kind    fsChangeEventKind
-	tracing trace.SpanContext
+type ChangeEvent struct {
+	Kind    ChangeKind
+	Path    string
+	When    time.Time
+	Tracing trace.SpanContext
 }

@@ -8,7 +8,7 @@ import (
 
 type Controller struct {
 	resources *resources.Controller
-	watcher   filesystem
+	watcher   FileSystem
 }
 
 func (c *Controller) Serve(ctx context.Context) error {
@@ -19,7 +19,7 @@ func (c *Controller) Serve(ctx context.Context) error {
 	resourceClient := c.resources.Client()
 	rt.resources = resourceClient
 
-	a1Bridge := operator.NewKindBridge[AlphaV1Spec, AlphaV1Status, watch](AlphaV1Type, &alphaV1Interpreter{runtime: rt})
+	a1Bridge := operator.NewKindBridge[Alpha1Spec, Alpha1Status, watch](Alpha1, &alpha1Interpreter{runtime: rt})
 	a1Watch, err := a1Bridge.Setup(ctx, resourceClient)
 	if err != nil {
 		return err
@@ -42,6 +42,6 @@ func (c *Controller) Serve(ctx context.Context) error {
 	}
 }
 
-func NewController(r *resources.Controller, watcher filesystem) *Controller {
+func NewController(r *resources.Controller, watcher FileSystem) *Controller {
 	return &Controller{resources: r, watcher: watcher}
 }
