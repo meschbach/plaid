@@ -21,3 +21,10 @@ type watch struct {
 func (w *watch) flushStatus(ctx context.Context) error {
 	return w.bridge.OnResourceChange(ctx, w.meta)
 }
+
+func (w *watch) asStatus() Alpha1Status {
+	var to Alpha1Status
+	to.LastChange = w.lastUpdated
+	to.Watching = w.watching
+	return to
+}

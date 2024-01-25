@@ -17,6 +17,10 @@ type runtimeState struct {
 }
 
 func (r *runtimeState) registerWatcher(ctx context.Context, path string, who *watch) error {
+	if err := r.fs.Watch(ctx, path); err != nil {
+		return err
+	}
+	who.watching = true
 	r.watchers = append(r.watchers, who)
 	return nil
 }

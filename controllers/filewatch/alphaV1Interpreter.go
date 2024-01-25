@@ -8,7 +8,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"path/filepath"
-	"time"
 )
 
 type alpha1Interpreter struct {
@@ -19,30 +18,22 @@ func (a *alpha1Interpreter) Create(parent context.Context, which resources.Meta,
 	ctx, span := tracing.Start(parent, "fileWatch/alphaV1.Create", trace.WithAttributes(attribute.Stringer("which", which)))
 	defer span.End()
 
-	status := Alpha1Status{
-		LastChange: nil,
-	}
-	if len(spec.AbsolutePath) == 0 {
-		now := time.Now()
-		status.LastChange = &now
-		_, err := a.runtime.resources.Log(ctx, which, resources.Error, "empty absolute Path")
-		return nil, status, err
-	}
 	w := &watch{
 		meta:   which,
 		base:   spec.AbsolutePath,
 		bridge: bridge,
 	}
+	if len(spec.AbsolutePath) == 0 {
+		_, err := a.runtime.resources.Log(ctx, which, resources.Error, "empty absolute Path")
+		return nil, w.asStatus(), err
+	}
 	var err error
 	if filepath.IsAbs(spec.AbsolutePath) {
 		err = a.runtime.registerWatcher(ctx, w.base, w)
-		if err == nil {
-			status.Watching = true
-		}
 	} else {
 		_, err = a.runtime.resources.Log(ctx, which, resources.Error, "Path %q is not absolute", spec.AbsolutePath)
 	}
-	return w, status, err
+	return w, w.asStatus(), err
 }
 
 func (a *alpha1Interpreter) Update(parent context.Context, which resources.Meta, rt *watch, s Alpha1Spec) (Alpha1Status, error) {
@@ -50,10 +41,7 @@ func (a *alpha1Interpreter) Update(parent context.Context, which resources.Meta,
 	defer span.End()
 
 	if rt.base == s.AbsolutePath {
-		return Alpha1Status{
-			Watching:   rt.watching,
-			LastChange: rt.lastUpdated,
-		}, nil
+		return rt.asStatus(), nil
 	}
 
 	return Alpha1Status{}, errors.New("todo -- change chase")
