@@ -7,6 +7,7 @@ import (
 
 type Client interface {
 	Create(ctx context.Context, ref resources.Meta, spec any) error
+	Delete(ctx context.Context, ref resources.Meta) error
 	Get(ctx context.Context, ref resources.Meta, spec any) (bool, error)
 	GetStatus(ctx context.Context, ref resources.Meta, status any) (bool, error)
 	GetEvents(ctx context.Context, ref resources.Meta, level resources.EventLevel) ([]resources.Event, error)

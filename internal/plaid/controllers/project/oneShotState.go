@@ -82,7 +82,7 @@ func (o *oneShotState) create(ctx context.Context, resEnv *resourceEnv, spec Alp
 
 	ref := resources.Meta{
 		Type: buildrun.Alpha1,
-		Name: which.Name + "-oneshot-" + oneShotSpec.Name + "-" + resources.GenSuffix(4),
+		Name: which.Name + oneShotSpec.Name + "-" + resources.GenSuffix(4),
 	}
 	token, err := resEnv.watcher.OnResourceStatusChanged(ctx, ref, func(ctx context.Context, changed resources.ResourceChanged) error {
 		switch changed.Operation {

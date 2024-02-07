@@ -74,7 +74,7 @@ func (d *daemonState) create(ctx context.Context, env *resourceEnv, spec Alpha1S
 
 	ref := resources.Meta{
 		Type: service.Alpha1,
-		Name: which.Name + "-daemon-" + daemonSpec.Name + "-" + resources.GenSuffix(4),
+		Name: which.Name + daemonSpec.Name + "-" + resources.GenSuffix(4),
 	}
 	token, err := env.watcher.OnResourceStatusChanged(ctx, ref, func(ctx context.Context, changed resources.ResourceChanged) error {
 		switch changed.Operation {

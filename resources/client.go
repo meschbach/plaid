@@ -171,7 +171,7 @@ func (c *Client) Watch(ctx context.Context, kind Type) (chan ResourceChanged, er
 func (c *Client) Watcher(ctx context.Context) (*ClientWatcher, error) {
 	startReply := make(chan genWatchReply, 1)
 	defer close(startReply)
-	out := make(chan ResourceChanged, 32)
+	out := make(chan ResourceChanged, 64)
 
 	select {
 	case c.dataPlane <- &genWatcher{

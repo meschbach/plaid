@@ -20,6 +20,12 @@ func (d *ResourceService) Create(ctx context.Context, w *wire.CreateResourceIn) 
 	return &wire.CreateResourceOut{}, err
 }
 
+func (d *ResourceService) Delete(ctx context.Context, w *wire.DeleteResourceIn) (*wire.DeleteResourceOut, error) {
+	target := internalizeMeta(w.Ref)
+	exists, err := d.client.Delete(ctx, target)
+	return &wire.DeleteResourceOut{Success: exists}, err
+}
+
 func (d *ResourceService) Get(ctx context.Context, in *wire.GetIn) (*wire.GetOut, error) {
 	data, exists, err := d.client.GetBytes(ctx, internalizeMeta(in.Target))
 	return &wire.GetOut{

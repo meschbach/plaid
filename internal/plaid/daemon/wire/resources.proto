@@ -7,6 +7,7 @@ import "google/protobuf/timestamp.proto";
 
 service ResourceController {
   rpc Create(CreateResourceIn) returns (CreateResourceOut) {}
+  rpc Delete(DeleteResourceIn) returns (DeleteResourceOut) {}
   rpc Get(GetIn) returns (GetOut){}
   rpc GetStatus(GetStatusIn) returns (GetStatusOut) {}
   rpc GetEvents(GetEventsIn) returns (GetEventsOut) {}
@@ -100,4 +101,12 @@ message GetEventsIn {
 message GetEventsOut {
   repeated Event events = 1;
   bool exists = 2;
+}
+
+message DeleteResourceIn {
+  Meta ref = 1;
+}
+
+message DeleteResourceOut {
+  bool success = 1;
 }

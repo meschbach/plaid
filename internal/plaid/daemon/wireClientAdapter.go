@@ -34,6 +34,12 @@ func (w *WireClientAdapter) Create(ctx context.Context, ref resources.Meta, spec
 	return err
 }
 
+func (w *WireClientAdapter) Delete(ctx context.Context, ref resources.Meta) error {
+	wireRef := metaToWire(ref)
+	_, err := w.wire.Delete(ctx, &wire.DeleteResourceIn{Ref: wireRef})
+	return err
+}
+
 func (w *WireClientAdapter) Get(ctx context.Context, ref resources.Meta, spec any) (bool, error) {
 	wireRef := metaToWire(ref)
 	out, err := w.wire.Get(ctx, &wire.GetIn{

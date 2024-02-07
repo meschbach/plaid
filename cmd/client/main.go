@@ -36,6 +36,7 @@ func main() {
 		Long:         "Platform, Library, and Application implement develop for rapid development",
 		SilenceUsage: true,
 	}
+	rootCmd.AddCommand(deleteCommand(rt))
 	rootCmd.AddCommand(getCommand(rt))
 	rootCmd.AddCommand(listCommand(rt))
 	rootCmd.AddCommand(upCommand(rt))

@@ -43,10 +43,12 @@ func (b *builderState) decideNextStep(ctx context.Context, env resEnv) (builderN
 		status.State = "creating"
 		return builderNextCreate, status, nil
 	}
+	status.State = "created"
 
 	var procStatus exec.InvocationAlphaV1Status
 	exists, err := env.rpc.GetStatus(ctx, b.lastBuild, &procStatus)
 	if err != nil {
+		status.State = "internal-error"
 		return builderNextWait, status, err
 	}
 	if !exists {

@@ -19,6 +19,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ResourceControllerClient interface {
 	Create(ctx context.Context, in *CreateResourceIn, opts ...grpc.CallOption) (*CreateResourceOut, error)
+	Delete(ctx context.Context, in *DeleteResourceIn, opts ...grpc.CallOption) (*DeleteResourceOut, error)
 	Get(ctx context.Context, in *GetIn, opts ...grpc.CallOption) (*GetOut, error)
 	GetStatus(ctx context.Context, in *GetStatusIn, opts ...grpc.CallOption) (*GetStatusOut, error)
 	GetEvents(ctx context.Context, in *GetEventsIn, opts ...grpc.CallOption) (*GetEventsOut, error)
@@ -37,6 +38,15 @@ func NewResourceControllerClient(cc grpc.ClientConnInterface) ResourceController
 func (c *resourceControllerClient) Create(ctx context.Context, in *CreateResourceIn, opts ...grpc.CallOption) (*CreateResourceOut, error) {
 	out := new(CreateResourceOut)
 	err := c.cc.Invoke(ctx, "/wire.ResourceController/Create", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *resourceControllerClient) Delete(ctx context.Context, in *DeleteResourceIn, opts ...grpc.CallOption) (*DeleteResourceOut, error) {
+	out := new(DeleteResourceOut)
+	err := c.cc.Invoke(ctx, "/wire.ResourceController/Delete", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -115,6 +125,7 @@ func (c *resourceControllerClient) List(ctx context.Context, in *ListIn, opts ..
 // for forward compatibility
 type ResourceControllerServer interface {
 	Create(context.Context, *CreateResourceIn) (*CreateResourceOut, error)
+	Delete(context.Context, *DeleteResourceIn) (*DeleteResourceOut, error)
 	Get(context.Context, *GetIn) (*GetOut, error)
 	GetStatus(context.Context, *GetStatusIn) (*GetStatusOut, error)
 	GetEvents(context.Context, *GetEventsIn) (*GetEventsOut, error)
@@ -129,6 +140,9 @@ type UnimplementedResourceControllerServer struct {
 
 func (UnimplementedResourceControllerServer) Create(context.Context, *CreateResourceIn) (*CreateResourceOut, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Create not implemented")
+}
+func (UnimplementedResourceControllerServer) Delete(context.Context, *DeleteResourceIn) (*DeleteResourceOut, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
 }
 func (UnimplementedResourceControllerServer) Get(context.Context, *GetIn) (*GetOut, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
@@ -172,6 +186,24 @@ func _ResourceController_Create_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ResourceControllerServer).Create(ctx, req.(*CreateResourceIn))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ResourceController_Delete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteResourceIn)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ResourceControllerServer).Delete(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/wire.ResourceController/Delete",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ResourceControllerServer).Delete(ctx, req.(*DeleteResourceIn))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -284,6 +316,10 @@ var ResourceController_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Create",
 			Handler:    _ResourceController_Create_Handler,
+		},
+		{
+			MethodName: "Delete",
+			Handler:    _ResourceController_Delete_Handler,
 		},
 		{
 			MethodName: "Get",
