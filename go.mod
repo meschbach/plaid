@@ -6,7 +6,7 @@ require (
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/go-faker/faker/v4 v4.2.0
 	github.com/gorilla/mux v1.8.1
-	github.com/meschbach/go-junk-bucket v0.0.0-20240101183424-d3cc98e89dda
+	github.com/meschbach/go-junk-bucket v0.0.0-20240126171123-6acf1580b501
 	github.com/spf13/cobra v1.8.0
 	github.com/stretchr/testify v1.8.4
 	github.com/thejerf/suture/v4 v4.0.2
