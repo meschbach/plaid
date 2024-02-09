@@ -17,6 +17,7 @@ type KindBridgeState struct {
 type KindBridgeBinding[Spec any, Status any, R any] interface {
 	Create(ctx context.Context, which resources.Meta, spec Spec, bridge *KindBridgeState) (*R, Status, error)
 	Update(ctx context.Context, which resources.Meta, rt *R, s Spec) (Status, error)
+	Delete(ctx context.Context, which resources.Meta, rt *R)
 }
 
 // KindBridge bridges resource management of a specific kind
