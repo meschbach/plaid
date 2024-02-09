@@ -17,7 +17,7 @@ type KindBridgeState struct {
 type KindBridgeBinding[Spec any, Status any, R any] interface {
 	Create(ctx context.Context, which resources.Meta, spec Spec, bridge *KindBridgeState) (*R, Status, error)
 	Update(ctx context.Context, which resources.Meta, rt *R, s Spec) (Status, error)
-	Delete(ctx context.Context, which resources.Meta, rt *R)
+	Delete(ctx context.Context, which resources.Meta, rt *R) error
 }
 
 // KindBridge bridges resource management of a specific kind
@@ -169,6 +169,15 @@ func (k *KindBridge[Spec, Status, R]) updated(parentCtx context.Context, r *reso
 	}
 }
 
+func (k *KindBridge[Spec, Status, R]) delete(parentCtx context.Context, r *resources.Client, changed resources.Meta) error {
+	state, has := k.mapping.Delete(changed)
+	if !has { //for whatever reason we don't have state associated with this resource, ignore it
+		return nil
+	}
+	problem := k.binding.Delete(parentCtx, changed, state)
+	return problem
+}
+
 func (k *KindBridge[Spec, Status, R]) Dispatch(parent context.Context, r *resources.Client, changed resources.ResourceChanged) error {
 	return k.observer.Digest(parent, changed)
 }
@@ -182,8 +191,8 @@ func (k *KindBridge[Spec, Status, R]) digestChange(parent context.Context, chang
 	switch changed.Operation {
 	case resources.CreatedEvent:
 		return k.create(ctx, k.store, changed.Which)
-	case resources.DeletedEvent: //todo: properly clean up
-		return nil
+	case resources.DeletedEvent:
+		return k.delete(ctx, k.store, changed.Which)
 	case resources.UpdatedEvent:
 		return k.updated(ctx, k.store, changed.Which)
 	default:
