@@ -66,14 +66,8 @@ func TestKindBridge(t *testing.T) {
 
 		var state *capturingKindState
 		for !controller.created {
-			select {
-			case <-root.Done():
-				require.NoError(t, root.Err())
-				return
-			case event := <-k.observer.Feed:
-				require.NoError(t, k.observer.Digest(root, event))
-				state = controller.last
-			}
+			require.NoError(t, k.ConsumeEvent(root))
+			state = controller.last
 		}
 
 		t.Run("When the resource is deleted", func(t *testing.T) {
@@ -81,13 +75,7 @@ func TestKindBridge(t *testing.T) {
 			require.True(t, existed, "target resource should still exist")
 			require.NoError(t, err)
 			for state.deleted == 0 {
-				select {
-				case <-root.Done():
-					require.NoError(t, root.Err())
-					return
-				case event := <-k.observer.Feed:
-					require.NoError(t, k.observer.Digest(root, event))
-				}
+				require.NoError(t, k.ConsumeEvent(root))
 			}
 			assert.Less(t, 0, state.deleted, "then the resource is deleted")
 		})

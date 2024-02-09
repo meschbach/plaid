@@ -203,3 +203,13 @@ func (k *KindBridge[Spec, Status, R]) digestChange(parent context.Context, chang
 func (k *KindBridge[Spec, Status, R]) All() []*R {
 	return k.mapping.AllValues()
 }
+
+// ConsumeEvent will wait on an event to be processed or for the parent context to be cancelled
+func (k *KindBridge[Spec, Status, R]) ConsumeEvent(parentContext context.Context) error {
+	select {
+	case <-parentContext.Done():
+		return parentContext.Err()
+	case e := <-k.changeFeed:
+		return k.observer.Digest(parentContext, e)
+	}
+}
