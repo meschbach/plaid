@@ -8,6 +8,7 @@ import (
 
 type FileSystem interface {
 	Watch(ctx context.Context, path string) error
+	Unwatch(ctx context.Context, path string) error
 	ChangeFeed() <-chan ChangeEvent
 }
 

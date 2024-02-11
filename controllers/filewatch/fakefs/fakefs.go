@@ -3,6 +3,7 @@ package fakefs
 
 import (
 	"context"
+	"github.com/meschbach/go-junk-bucket/pkg/fx"
 	"github.com/meschbach/plaid/controllers/filewatch"
 	"go.opentelemetry.io/otel/trace"
 	"time"
@@ -17,6 +18,20 @@ type Core struct {
 func (c *Core) Watch(ctx context.Context, path string) error {
 	op := func(ctx context.Context, core *Core) error {
 		core.watchingPrefix = append(core.watchingPrefix, path)
+		return nil
+	}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case c.ops <- op:
+		return nil
+	}
+}
+func (c *Core) Unwatch(ctx context.Context, path string) error {
+	op := func(ctx context.Context, core *Core) error {
+		core.watchingPrefix = fx.Filter(core.watchingPrefix, func(e string) bool {
+			return e != path
+		})
 		return nil
 	}
 	select {

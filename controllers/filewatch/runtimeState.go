@@ -3,6 +3,7 @@ package filewatch
 import (
 	"context"
 	"errors"
+	"github.com/meschbach/go-junk-bucket/pkg/fx"
 	"github.com/meschbach/plaid/resources"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -23,6 +24,13 @@ func (r *runtimeState) registerWatcher(ctx context.Context, path string, who *wa
 	who.watching = true
 	r.watchers = append(r.watchers, who)
 	return nil
+}
+
+func (r *runtimeState) unregisterWatch(ctx context.Context, path string, observer *watch) error {
+	r.watchers = fx.Filter(r.watchers, func(e *watch) bool {
+		return e != observer
+	})
+	return r.fs.Unwatch(ctx, path)
 }
 
 func (r *runtimeState) consumeFSEvent(parent context.Context, event ChangeEvent) error {
