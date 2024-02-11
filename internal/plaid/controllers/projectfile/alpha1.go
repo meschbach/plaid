@@ -87,6 +87,18 @@ func (a *alpha1Ops) Update(ctx context.Context, which resources.Meta, rt *state,
 	return status, nil
 }
 
+func (a *alpha1Ops) Delete(ctx context.Context, which resources.Meta, rt *state) error {
+	env := stateEnv{
+		which:   which,
+		rpc:     a.storage,
+		watcher: a.watcher,
+		reconcile: func(ctx context.Context) error {
+			return nil
+		},
+	}
+	return rt.projectResource.delete(ctx, env)
+}
+
 type state struct {
 	refresh         *operator.KindBridgeState
 	projectFile     fileState
