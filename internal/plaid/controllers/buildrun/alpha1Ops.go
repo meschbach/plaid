@@ -104,10 +104,6 @@ func (a *alpha1Ops) Delete(ctx context.Context, which resources.Meta, rt *state)
 		object:  which,
 		rpc:     a.client,
 		watcher: a.watcher,
-		reconcile: func(ctx context.Context) error {
-			return rt.bridge.OnResourceChange(ctx, which)
-		},
-		restartToken: currentRestartToken,
 	}
 
 	procError := rt.proc.delete(ctx, runtimeEnv)
