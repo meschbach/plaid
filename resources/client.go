@@ -13,6 +13,7 @@ type Client struct {
 	boundary  reactors.Boundary[*Controller]
 }
 
+// Delete attempts to delete teh named resource, return true if the resource exists otherwise false.
 func (c *Client) Delete(ctx context.Context, what Meta) (bool, error) {
 	resultSignal := make(chan deleteResult, 1)
 	defer close(resultSignal)
