@@ -16,6 +16,7 @@ var AlphaV1Type = resources.Type{
 	Version: Alpha1,
 }
 
+// todo: rethink if this is useful -- not really right now
 type Alpha1Spec struct {
 	//Source is the target process to receive logging messages from
 	Source AlphaV1SourceSpec `json:"source"`
@@ -56,4 +57,8 @@ func (a *alphaV1) Create(ctx context.Context, which resources.Meta, spec Alpha1S
 
 func (a *alphaV1) Update(ctx context.Context, which resources.Meta, rt *alpha1State, s Alpha1Spec) (Alpha1Status, error) {
 	return rt.toStatus(), nil
+}
+
+func (a *alphaV1) Delete(ctx context.Context, which resources.Meta, rt *alpha1State) error {
+	return nil
 }
