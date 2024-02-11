@@ -2,6 +2,7 @@ package buildrun
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
 	"github.com/meschbach/plaid/resources"
@@ -84,4 +85,14 @@ func (r *runState) create(ctx context.Context, env *stateEnv, spec exec.Template
 	r.lastWatchToken = watchToken
 	r.lastRestartToken = env.restartToken
 	return nil
+}
+
+func (r *runState) delete(ctx context.Context, env *stateEnv) error {
+	if !r.cratedRun {
+		return nil
+	}
+	unwatchError := env.watcher.Off(ctx, r.lastWatchToken)
+	_, deleteError := env.rpc.Delete(ctx, r.lastRun)
+	r.cratedRun = false
+	return errors.Join(unwatchError, deleteError)
 }
