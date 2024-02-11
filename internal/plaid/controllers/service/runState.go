@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
 	"github.com/meschbach/plaid/resources"
 )
@@ -42,4 +43,14 @@ func (r *runState) create(ctx context.Context, env resEnv, spec exec.TemplateAlp
 	r.lastRun = res
 	r.lastWatchToken = token
 	return nil
+}
+
+func (r *runState) delete(ctx context.Context, env resEnv) error {
+	if !r.created {
+		return nil
+	}
+
+	watchError := env.watcher.Off(ctx, r.lastWatchToken)
+	_, deleteError := env.rpc.Delete(ctx, r.lastRun)
+	return errors.Join(watchError, deleteError)
 }

@@ -148,3 +148,18 @@ func (a *alpha1Ops) Update(ctx context.Context, which resources.Meta, rt *servic
 	}
 	return status, nil
 }
+
+func (a *alpha1Ops) Delete(ctx context.Context, which resources.Meta, rt *serviceState) error {
+	env := resEnv{
+		object:  which,
+		rpc:     a.client,
+		watcher: a.watcher,
+		reconcile: func(ctx context.Context) error {
+			return rt.bridge.OnResourceChange(ctx, which)
+		},
+	}
+
+	buildError := rt.build.delete(ctx, env)
+	runError := rt.run.delete(ctx, env)
+	return errors.Join(buildError, runError)
+}
