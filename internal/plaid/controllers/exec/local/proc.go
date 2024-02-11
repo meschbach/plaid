@@ -31,6 +31,7 @@ type proc struct {
 
 	startingLink    trace.SpanContext
 	supervisionTree *suture.Supervisor
+	serviceToken    suture.ServiceToken
 }
 
 type exitStatus struct {
