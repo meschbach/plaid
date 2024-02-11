@@ -117,3 +117,12 @@ func (o *oneShotState) create(ctx context.Context, resEnv *resourceEnv, spec Alp
 		return errors.Join(err, unwatch)
 	}
 }
+
+func (o *oneShotState) delete(ctx context.Context, resEnv *resourceEnv) error {
+	if !o.created {
+		return nil
+	}
+	watchError := resEnv.watcher.Off(ctx, o.watchToken)
+	_, deleteErr := resEnv.rpc.Delete(ctx, o.ref)
+	return errors.Join(watchError, deleteErr)
+}

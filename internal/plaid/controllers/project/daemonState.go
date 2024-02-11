@@ -96,3 +96,12 @@ func (d *daemonState) create(ctx context.Context, env *resourceEnv, spec Alpha1S
 		return errors.Join(err, unwatch)
 	}
 }
+
+func (d *daemonState) delete(ctx context.Context, env *resourceEnv) error {
+	if !d.created {
+		return nil
+	}
+	watchError := env.watcher.Off(ctx, d.watchToken)
+	_, deleteError := env.rpc.Delete(ctx, d.ref)
+	return errors.Join(watchError, deleteError)
+}

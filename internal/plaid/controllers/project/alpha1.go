@@ -131,6 +131,23 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 	return status, errors.Join(allErrors...)
 }
 
+func (a *alpha1Ops) Delete(ctx context.Context, which resources.Meta, rt *state) error {
+	env := &resourceEnv{
+		which:   which,
+		rpc:     a.client,
+		watcher: a.watcher,
+	}
+
+	var problems []error
+	for _, oneShot := range rt.oneShots {
+		problems = append(problems, oneShot.delete(ctx, env))
+	}
+	for _, daemon := range rt.daemons {
+		problems = append(problems, daemon.delete(ctx, env))
+	}
+	return errors.Join(problems...)
+}
+
 type state struct {
 	bridge *operator.KindBridgeState
 	//todo: watches used anywhere?
