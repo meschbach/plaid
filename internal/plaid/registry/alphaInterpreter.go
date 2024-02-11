@@ -61,3 +61,12 @@ func (a *alpha1Interpreter) Create(ctx context.Context, which resources.Meta, sp
 func (a *alpha1Interpreter) Update(ctx context.Context, which resources.Meta, rt *registry, s AlphaV1Spec) (AlphaV1Status, error) {
 	return AlphaV1Status{}, errors.New("todo")
 }
+
+func (a *alpha1Interpreter) Delete(ctx context.Context, which resources.Meta, rt *registry) error {
+	var problems []error
+	for _, project := range rt.projects {
+		_, err := a.res.Delete(ctx, project)
+		problems = append(problems, err)
+	}
+	return errors.Join(problems...)
+}
