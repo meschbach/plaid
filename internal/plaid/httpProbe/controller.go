@@ -118,3 +118,7 @@ func (a *alphaV1Interpreter) Create(ctx context.Context, which resources.Meta, s
 func (a *alphaV1Interpreter) Update(ctx context.Context, which resources.Meta, rt *alphaV1Probe, s AlphaV1Spec) (AlphaV1Status, error) {
 	return a.reconcile(ctx, rt, s)
 }
+
+func (a *alphaV1Interpreter) Delete(ctx context.Context, which resources.Meta, rt *alphaV1Probe) error {
+	return a.scheduler.unschedule(which)
+}

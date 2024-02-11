@@ -50,3 +50,12 @@ func (s *scheduler) schedule(period time.Duration, id resources.Meta, host strin
 	s.consumer[id] = onResult
 	s.tokens[id] = s.subtree.Add(p)
 }
+
+func (s *scheduler) unschedule(ref resources.Meta) error {
+	serviceToken, has := s.tokens[ref]
+	if !has {
+		return nil
+	}
+
+	return s.subtree.Remove(serviceToken)
+}
