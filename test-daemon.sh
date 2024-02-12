@@ -17,8 +17,6 @@ echo
 build_flags=""
 go build $build_flags -o tests/system/plaid-daemon ./cmd/daemon
 go build $build_flags -o tests/system/plaid-client ./cmd/client
-go build $build_flags -o tests/system/deps/services/service-a/service ./tests/system/deps/services/service-a/cmd
-go build $build_flags -o tests/system/deps/services/service-b/service ./tests/system/deps/services/service-b/cmd
 go build $build_flags -o tests/fsnwatch ./cmd/fsnwatch
 
 daemon=$PWD/tests/system/plaid-daemon
@@ -66,7 +64,7 @@ echo
 (cd deps/services
   export OTEL_SERVICE_NAME="plaid_services"
   export PLAID_CONFIG=$PWD/plaid.json
-  (cd service-b &&  $client up )
+  (cd client-b &&  $client up  $client_flags)
 )
 
 echo
