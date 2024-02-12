@@ -80,6 +80,8 @@ func exportOp(operation resources.ResourceChangedOperation) wire.WatcherEventOut
 		return wire.WatcherEventOut_Created
 	case resources.StatusUpdated:
 		return wire.WatcherEventOut_UpdatedStatus
+	case resources.DeletedEvent:
+		return wire.WatcherEventOut_Deleted
 	default:
 		panic(fmt.Sprintf("unknown operation %d", operation))
 	}

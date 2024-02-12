@@ -134,6 +134,8 @@ func internalizeOperation(op wire.WatcherEventOut_Op) resources.ResourceChangedO
 		return resources.CreatedEvent
 	case wire.WatcherEventOut_UpdatedStatus:
 		return resources.StatusUpdated
+	case wire.WatcherEventOut_Deleted:
+		return resources.DeletedEvent
 	default:
 		panic(fmt.Sprintf("unknown value %q", op.String()))
 	}
