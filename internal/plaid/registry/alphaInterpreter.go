@@ -16,7 +16,9 @@ type alpha1Interpreter struct {
 }
 
 func (a *alpha1Interpreter) Create(ctx context.Context, which resources.Meta, spec AlphaV1Spec, bridgeState *operator.KindBridgeState) (*registry, AlphaV1Status, error) {
-	reg := &registry{}
+	reg := &registry{
+		projects: map[string]resources.Meta{},
+	}
 	//does the file exist?
 	var persistentFile Config
 	if err := files.ParseJSONFile(spec.AbsoluteFilePath, &persistentFile); err != nil {
@@ -35,10 +37,12 @@ func (a *alpha1Interpreter) Create(ctx context.Context, which resources.Meta, sp
 			wd = filepath.Join(registryFileRelative, dir)
 		}
 
-		if err := a.res.Create(ctx, resources.Meta{
+		ref := resources.Meta{
 			Type: projectfile.Alpha1,
 			Name: name,
-		}, projectfile.Alpha1Spec{
+		}
+		reg.projects[name] = ref
+		if err := a.res.Create(ctx, ref, projectfile.Alpha1Spec{
 			WorkingDirectory: wd,
 			ProjectFile:      "plaid.json",
 		}); err != nil {

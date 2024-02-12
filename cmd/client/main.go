@@ -79,6 +79,7 @@ func upCommand(rt *client.Runtime) *cobra.Command {
 		}),
 	}
 	cmd.Flags().BoolVarP(&opt.ReportUpdates, "report-progress", "p", false, "Reports status updates as they occur")
+	cmd.Flags().BoolVarP(&opt.DeleteOnCompletion, "delete-on-completion", "d", false, "Deletes project on completion")
 	return cmd
 }
 

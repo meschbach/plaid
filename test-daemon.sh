@@ -21,6 +21,7 @@ go build $build_flags -o tests/fsnwatch ./cmd/fsnwatch
 
 daemon=$PWD/tests/system/plaid-daemon
 client=$PWD/tests/system/plaid-client
+client_flags="--delete-on-completion"
 
 cd tests/system
 
@@ -44,7 +45,7 @@ echo "Simple"
 echo
 (
   export OTEL_SERVICE_NAME="plaid_simple"
-  cd simple && $client up  && echo "[test-harness] simple done"
+  cd simple && $client up $client_flags && echo "[test-harness] simple done"
 )
 
 # One shot test
@@ -54,7 +55,7 @@ echo
 (cd deps/one-shot
   export OTEL_SERVICE_NAME="plaid_one-shot"
   export PLAID_CONFIG=$PWD/plaid.json
-  (cd job-b && $client up && echo "[test-harness] one-shot dep test complete")
+  (cd job-b && $client up  $client_flags && echo "[test-harness] one-shot dep test complete")
 )
 
 echo

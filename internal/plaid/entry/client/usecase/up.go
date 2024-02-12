@@ -16,12 +16,15 @@ import (
 	"github.com/meschbach/plaid/ipc/grpc/logger"
 	"github.com/meschbach/plaid/resources"
 	"github.com/thejerf/suture/v4"
+	"go.opentelemetry.io/otel/codes"
 	"os"
 	"path/filepath"
 )
 
 type UpOptions struct {
 	ReportUpdates bool
+	// DeleteOnCompletion will delete the created project on completion
+	DeleteOnCompletion bool
 }
 
 func Up(ctx context.Context, daemon *daemon.Daemon, rt *client2.Runtime, opts UpOptions) error {
@@ -42,12 +45,14 @@ func Up(ctx context.Context, daemon *daemon.Daemon, rt *client2.Runtime, opts Up
 	daemon.Tree.Add(pump)
 
 	client := daemon.Storage
+	var deleteConfig *resources.Meta
 	//Do we have a configuration file?
 	if plaidConfigFile, has := os.LookupEnv("PLAID_CONFIG"); has {
 		configRef := resources.Meta{
 			Type: registry.AlphaV1,
 			Name: baseName,
 		}
+		deleteConfig = &configRef
 		if err := upCreateRegistry(ctx, client, configRef, plaidConfigFile); err != nil {
 			return err
 		}
@@ -74,15 +79,20 @@ func Up(ctx context.Context, daemon *daemon.Daemon, rt *client2.Runtime, opts Up
 	}
 	var token resources.WatchToken
 	token, err = w.OnResource(ctx, ref, func(parent context.Context, changed resources.ResourceChanged) error {
+		ctx, span := tracer.Start(parent, "onProjectChanged")
+		defer span.End()
+
 		var status projectfile.Alpha1Status
 		exists, err := client.GetStatus(ctx, ref, &status)
 		if err != nil {
+			span.SetStatus(codes.Error, "failed to get status")
 			if offErr := w.Off(ctx, token); offErr != nil {
 				return errors.Join(offErr, err)
 			}
 			return err
 		}
 		if !exists {
+			span.SetStatus(codes.Error, "missing")
 			err := errors.New("gone missing")
 			if offErr := w.Off(ctx, token); offErr != nil {
 				return errors.Join(offErr, err)
@@ -162,6 +172,19 @@ func Up(ctx context.Context, daemon *daemon.Daemon, rt *client2.Runtime, opts Up
 		}
 
 		if state.met {
+			if opts.DeleteOnCompletion {
+				err := client.Delete(ctx, ref)
+				if err != nil {
+					fmt.Printf("Failed to delete project on completion because %s\n", err.Error())
+				}
+
+				if deleteConfig != nil {
+					fmt.Printf("uuu\t\tDeleeting registry\n")
+					if err := client.Delete(ctx, *deleteConfig); err != nil {
+						fmt.Printf("Failed to delete project registry because %s\n", err.Error())
+					}
+				}
+			}
 			if state.taskSuccess {
 				rt.ExitCode = 0
 			} else {
