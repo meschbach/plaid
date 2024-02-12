@@ -18,7 +18,11 @@ type watcherBridge struct {
 func (w *watcherBridge) Serve(ctx context.Context) error {
 	for {
 		select {
-		case event := <-w.events:
+		case event, ok := <-w.events:
+			//w.events was closed
+			if !ok {
+				continue
+			}
 			if err := w.consumeInput(ctx, event); err != nil {
 				return err
 			}
