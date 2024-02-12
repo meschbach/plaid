@@ -179,7 +179,6 @@ func Up(ctx context.Context, daemon *daemon.Daemon, rt *client2.Runtime, opts Up
 				}
 
 				if deleteConfig != nil {
-					fmt.Printf("uuu\t\tDeleeting registry\n")
 					if err := client.Delete(ctx, *deleteConfig); err != nil {
 						fmt.Printf("Failed to delete project registry because %s\n", err.Error())
 					}
