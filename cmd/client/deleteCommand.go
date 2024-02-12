@@ -13,7 +13,7 @@ func deleteCommand(rt *client.Runtime) *cobra.Command {
 		Use:   "delete <kind> <version> <name>",
 		Short: "deletes the specific resource in question",
 		Args:  cobra.ExactArgs(3),
-		RunE: runCommand(rt, func(ctx context.Context, rt *client.Runtime, client *daemon.Daemon, args []string) error {
+		RunE: runCommand("delete", rt, func(ctx context.Context, rt *client.Runtime, client *daemon.Daemon, args []string) error {
 			kind := resources.Type{Kind: args[0], Version: args[1]}
 			ref := resources.Meta{
 				Type: kind,
