@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/meschbach/plaid/internal/plaid/controllers/dependencies"
 	"github.com/meschbach/plaid/resources"
 	"github.com/meschbach/plaid/resources/operator"
 )
@@ -9,7 +10,7 @@ import (
 type serviceState struct {
 	bridge *operator.KindBridgeState
 
-	dependencies []*dependencyState
+	dependencies *dependencies.State
 	build        builderState
 	run          runState
 	readiness    readinessProbeState

@@ -21,8 +21,9 @@ type NamedDependencyAlpha1 struct {
 type Alpha1Status map[string]DependencyStatusAlpha1
 
 type DependencyStatusAlpha1 struct {
-	Name  string `json:"name"`
-	Ready bool   `json:"ready"`
+	Name  string         `json:"name"`
+	Ref   resources.Meta `json:"ref"`
+	Ready bool           `json:"ready"`
 }
 
 func (s *State) Init(deps Alpha1Spec) {
@@ -42,6 +43,7 @@ func (s *State) Reconcile(ctx context.Context, env Env) (ready bool, status Alph
 		ready, problem := dep.Reconcile(ctx, env)
 		output[name] = DependencyStatusAlpha1{
 			Name:  name,
+			Ref:   dep.ref,
 			Ready: ready,
 		}
 		if problem != nil {

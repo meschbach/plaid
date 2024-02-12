@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 	"errors"
+	"github.com/meschbach/plaid/internal/plaid/controllers/dependencies"
 	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
 	"github.com/meschbach/plaid/internal/plaid/controllers/probes"
 	"github.com/meschbach/plaid/resources"
 	"github.com/meschbach/plaid/resources/operator"
+	"go.opentelemetry.io/otel/codes"
 )
 
 var Alpha1 = resources.Type{
@@ -46,13 +48,26 @@ type alpha1Ops struct {
 
 func (a *alpha1Ops) Create(ctx context.Context, which resources.Meta, spec Alpha1Spec, bridge *operator.KindBridgeState) (*serviceState, Alpha1Status, error) {
 	rt := &serviceState{
-		bridge: bridge,
+		bridge:       bridge,
+		dependencies: &dependencies.State{},
 	}
+	deps := make([]dependencies.NamedDependencyAlpha1, 0, len(spec.Dependencies))
+	for _, ref := range spec.Dependencies {
+		deps = append(deps, dependencies.NamedDependencyAlpha1{
+			Name: ref.Name,
+			Ref:  ref,
+		})
+	}
+	rt.dependencies.Init(deps)
+
 	status, err := a.Update(ctx, which, rt, spec)
 	return rt, status, err
 }
 
-func (a *alpha1Ops) Update(ctx context.Context, which resources.Meta, rt *serviceState, s Alpha1Spec) (Alpha1Status, error) {
+func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *serviceState, s Alpha1Spec) (Alpha1Status, error) {
+	ctx, span := tracer.Start(parent, "service.alpha1/Update")
+	defer span.End()
+
 	env := resEnv{
 		object:  which,
 		rpc:     a.client,
@@ -63,64 +78,47 @@ func (a *alpha1Ops) Update(ctx context.Context, which resources.Meta, rt *servic
 	}
 
 	status := Alpha1Status{}
-
-	if rt.dependencies == nil {
-		rt.dependencies = make([]*dependencyState, len(s.Dependencies))
+	//todo: alpha2 should just use the status directly
+	allReady, depStatus, err := rt.dependencies.Reconcile(ctx, dependencies.Env{
+		Storage: a.client,
+		Watcher: a.watcher,
+		OnChange: func(ctx context.Context) error {
+			return env.reconcile(ctx)
+		},
+	})
+	for _, s := range depStatus {
+		status.Dependencies = append(status.Dependencies, Alpha1StatusDependency{
+			Dependency: s.Ref,
+			Ready:      s.Ready,
+		})
 	}
-	status.Dependencies = make([]Alpha1StatusDependency, len(s.Dependencies))
-	var dependencyErrors []error
-	allReady := true
-	for i, depSpec := range s.Dependencies {
-		if rt.dependencies[i] == nil {
-			rt.dependencies[i] = &dependencyState{
-				ref: depSpec,
-			}
-			if err := rt.dependencies[i].setup(ctx, env); err != nil {
-				allReady = false
-				dependencyErrors = append(dependencyErrors, err)
-				continue
-			}
-		}
-		if next, err := rt.dependencies[i].decideNextStep(ctx, env); err != nil {
-			allReady = false
-			dependencyErrors = append(dependencyErrors, err)
-			continue
-		} else {
-			switch next {
-			case dependencyWait:
-				status.Dependencies[i] = Alpha1StatusDependency{
-					Dependency: rt.dependencies[i].ref,
-					Ready:      false,
-				}
-				allReady = false
-			case dependencyReady:
-				status.Dependencies[i] = Alpha1StatusDependency{
-					Dependency: rt.dependencies[i].ref,
-					Ready:      true,
-				}
-			case dependencySetup:
-				panic("must be done during creation")
-			}
-		}
+	if err != nil {
+		span.SetStatus(codes.Error, "dependency reconciliation error")
+		span.RecordError(err)
+		return status, err
 	}
-	if dependencyErrors != nil || !allReady {
-		status.Ready = false
-		return status, errors.Join(dependencyErrors...)
+	status.Ready = allReady
+	if !allReady {
+		span.AddEvent("dependencies-not-ready")
+		return status, nil
 	}
 
 	//setup build
 	if s.Build != nil { //todo: test builder branch
 		if step, buildStatus, err := rt.build.decideNextStep(ctx, env); err != nil {
+			span.SetStatus(codes.Error, "failed to decide next steps")
 			return status, err
 		} else {
 			switch step {
 			case builderNextCreate:
 				status.Build = buildStatus
 				if err := rt.build.create(ctx, env, s.Build); err != nil {
+					span.SetStatus(codes.Error, "build error")
 					status.Build.State = "internal-error"
-					return status, err
 				}
+				return status, err
 			case builderNextWait:
+				span.AddEvent("builder-wait")
 				status.Build = buildStatus
 				return status, err
 			case builderStateSuccessfullyCompleted:
@@ -131,19 +129,29 @@ func (a *alpha1Ops) Update(ctx context.Context, which resources.Meta, rt *servic
 
 	//run service
 	if step, err := rt.run.decideNextStep(ctx, env); err != nil {
+		span.SetStatus(codes.Error, "runtime error")
 		return status, err
 	} else {
 		switch step {
 		case runStateCreate:
+			span.AddEvent("run-create")
 			if err := rt.run.create(ctx, env, s.Run); err != nil {
+				span.SetStatus(codes.Error, "runtime create error")
 				return status, err
 			}
 		case runStateWait:
+			span.AddEvent("run-wait")
 		}
 	}
 
 	// probe readiness
 	if keepGoing, err := rt.readiness.reconcile(ctx, &env, s.Readiness, &status); err != nil || !keepGoing {
+		if err != nil {
+			span.SetStatus(codes.Error, "readiness reconciliation")
+		} else if !keepGoing {
+			span.AddEvent("self-not-ready")
+		}
+
 		return status, err
 	}
 	return status, nil
