@@ -6,6 +6,7 @@ import (
 	"github.com/meschbach/plaid/resources"
 	"github.com/meschbach/plaid/resources/operator"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -30,7 +31,11 @@ func (a *alpha1Ops) Create(ctx context.Context, which resources.Meta, spec Alpha
 }
 
 func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *state, spec Alpha1Spec) (Alpha1Status, error) {
-	ctx, span := tracer.Start(parent, "project.Update", trace.WithAttributes(attribute.String("name", which.Name)))
+	ctx, span := tracer.Start(parent, "project.Update", trace.WithAttributes(
+		attribute.Stringer("name", which),
+		attribute.Int("spec.oneshots", len(spec.OneShots)),
+		attribute.Int("spec.daemons", len(spec.Daemons)),
+	))
 	defer span.End()
 
 	status := Alpha1Status{}
@@ -83,6 +88,7 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 		}
 		status.OneShots = append(status.OneShots, oneShotStatus)
 	}
+	span.SetAttributes(attribute.Int("one-shots.incomplete", incompleteOneShots))
 	status.Done = incompleteOneShots == 0 && len(spec.Daemons) == 0
 	if status.Done {
 		if failedOneShots > 0 {
@@ -106,24 +112,35 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 
 		daemonStatus := &Alpha1DaemonStatus{}
 		if next, err := subController.decideNextStep(ctx, env); err != nil {
+			span.SetStatus(codes.Error, "failure while determine daemon state")
+			span.RecordError(err)
 			daemonErrors = append(daemonErrors, err)
 		} else {
 			switch next {
 			case daemonWait:
+				span.AddEvent("daemon-wait", trace.WithAttributes(attribute.Bool("daemon.ready", daemonStatus.Ready)))
+				if !daemonStatus.Ready {
+					allDaemonsReady = false
+				}
 				//do nothing
 			case daemonCreate:
+				span.AddEvent("creating-daemon")
 				err := subController.create(ctx, env, spec, daemonSpec)
 				if err != nil {
+					span.SetStatus(codes.Error, "failed to create daemon")
+					span.RecordError(err)
 					daemonErrors = append(daemonErrors, err)
 				}
+				allDaemonsReady = false
 			case daemonFinished:
+				span.AddEvent("daemon-finished")
 				//todo: restart?
 			}
 			subController.toStatus(daemonSpec, daemonStatus)
-			allDaemonsReady = allDaemonsReady && daemonStatus.Ready
 			status.Daemons = append(status.Daemons, daemonStatus)
 		}
 	}
+	span.SetAttributes(attribute.Bool("daemons.ready", allDaemonsReady))
 
 	//todo: clean up tests and put this under test
 	status.Ready = incompleteOneShots == 0 && allDaemonsReady
