@@ -26,6 +26,7 @@ type InvocationAlphaV1Status struct {
 	Started  *time.Time `json:"started,omitempty"`
 	Finished *time.Time `json:"finished,omitempty"`
 	//TODO
-	ExitStatus *int `json:"exit-status,omitempty"`
-	Healthy    bool `json:"healthy"`
+	ExitStatus *int   `json:"exit-status,omitempty"`
+	ExitError  string `json:"exit-error,omitempty"`
+	Healthy    bool   `json:"healthy"`
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/meschbach/plaid/resources"
 	"github.com/meschbach/plaid/resources/operator"
 	"github.com/thejerf/suture/v4"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"os/exec"
@@ -35,8 +36,9 @@ type proc struct {
 }
 
 type exitStatus struct {
-	when time.Time
-	code int
+	when    time.Time
+	code    int
+	problem error
 }
 
 func (p *proc) Serve(parent context.Context) error {
@@ -55,7 +57,16 @@ func (p *proc) Serve(parent context.Context) error {
 	cmd.WithOption(&sub.WorkingDir{Where: p.wd})
 	pg := sub.WithProcGroup()
 	cmd.WithOption(pg)
-	defer pg.Kill()
+	hasTerminated := false
+	defer func() {
+		if hasTerminated {
+			return
+		}
+		if err := pg.Kill(); err != nil {
+			span.SetStatus(codes.Error, "failed to terminate process group")
+			span.RecordError(err)
+		}
+	}()
 
 	if err := (func() error {
 		initCtx, span := tracer.Start(ctx, "proc.Init")
@@ -106,24 +117,32 @@ func (p *proc) Serve(parent context.Context) error {
 			return func() error {
 				doneCtx, span := tracer.Start(ctx, "proc.Finish")
 				defer span.End()
+				hasTerminated = true
 
 				func() {
 					p.control.Lock()
 					defer p.control.Unlock()
 
 					if err == nil {
-						p.exit = &exitStatus{when: time.Now(), code: 0}
+						span.SetAttributes(attribute.Bool("exit.error", false), attribute.Bool("exit.normal", true))
+						p.exit = &exitStatus{when: time.Now(), code: 0, problem: err}
 					} else if exit, ok := err.(*exec.ExitError); ok {
 						code := exit.ExitCode()
+						span.SetAttributes(attribute.Bool("exit.error", true), attribute.Int("exit.code", code), attribute.Bool("exit.normal", true))
 						p.exit = &exitStatus{
-							when: time.Now(),
-							code: code,
+							when:    time.Now(),
+							code:    code,
+							problem: err,
 						}
 						err = nil
 					} else {
+						span.SetAttributes(attribute.Bool("exit.error", true), attribute.Bool("exit.normal", false))
+						span.SetStatus(codes.Error, "unknown error")
+						span.RecordError(err)
 						p.exit = &exitStatus{
-							when: time.Now(),
-							code: -1,
+							when:    time.Now(),
+							code:    -1,
+							problem: err,
 						}
 					}
 				}()
@@ -153,5 +172,8 @@ func (p *proc) toAlphaV1Status() exec2.InvocationAlphaV1Status {
 	}
 	out.Finished = &p.exit.when
 	out.ExitStatus = &p.exit.code
+	if p.exit.problem != nil {
+		out.ExitError = p.exit.problem.Error()
+	}
 	return out
 }
