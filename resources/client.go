@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/meschbach/go-junk-bucket/pkg/reactors"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -92,7 +93,7 @@ func (c *Client) GetBytes(ctx context.Context, meta Meta) (body []byte, exists b
 }
 
 func (c *Client) GetStatus(parent context.Context, what Meta, out any) (bool, error) {
-	ctx, span := tracing.Start(parent, "GetStatus")
+	ctx, span := tracing.Start(parent, "GetStatus", trace.WithAttributes(attribute.Stringer("what", what)))
 	defer span.End()
 
 	bytes, exists, err := c.GetStatusBytes(ctx, what)
