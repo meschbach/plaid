@@ -2,7 +2,7 @@ package project
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
 	"github.com/meschbach/plaid/internal/plaid/controllers/service"
 	"github.com/meschbach/plaid/resources"
@@ -16,38 +16,45 @@ const (
 	daemonFinished
 )
 
+func (d daemonNext) String() string {
+	switch d {
+	case daemonWait:
+		return "daemon-wait"
+	case daemonCreate:
+		return "daemon-create"
+	case daemonFinished:
+		return "daemon-finished"
+	default:
+		return fmt.Sprintf("unknown daemonNext %d", d)
+	}
+}
+
 type daemonState struct {
-	created     bool
-	ref         resources.Meta
-	watchToken  resources.WatchToken
+	service     Subresource[service.Alpha1Status]
 	targetReady bool
 }
 
 func (d *daemonState) toStatus(spec Alpha1DaemonSpec, status *Alpha1DaemonStatus) {
 	status.Name = spec.Name
-	if d.created {
-		status.Current = &d.ref
+	if d.service.Created {
+		status.Current = &d.service.Ref
 		status.Ready = d.targetReady
 	}
 }
 
 func (d *daemonState) decideNextStep(ctx context.Context, env *resourceEnv) (daemonNext, error) {
-	if !d.created {
-		return daemonCreate, nil
-	}
-
 	var procState service.Alpha1Status
-	if exists, err := env.rpc.GetStatus(ctx, d.ref, &procState); err != nil || !exists {
+	step, err := d.service.Decide(ctx, env, &procState)
+	if err != nil {
 		return daemonWait, err
 	}
-	//todo: add step for failed states
-	d.targetReady = procState.Ready
-
+	switch step {
+	case SubresourceCreated:
+		return daemonCreate, nil
+	case SubresourceExists:
+		d.targetReady = procState.Ready
+	}
 	return daemonWait, nil
-	//if procState.Run.Result == nil || procState.Run.Result.Finished == nil {
-	//	return daemonWait, nil
-	//}
-	//return daemonFinished, nil
 }
 
 func (d *daemonState) create(ctx context.Context, env *resourceEnv, spec Alpha1Spec, daemonSpec Alpha1DaemonSpec) error {
@@ -76,32 +83,9 @@ func (d *daemonState) create(ctx context.Context, env *resourceEnv, spec Alpha1S
 		Type: service.Alpha1,
 		Name: which.Name + daemonSpec.Name + "-" + resources.GenSuffix(4),
 	}
-	token, err := env.watcher.OnResourceStatusChanged(ctx, ref, func(ctx context.Context, changed resources.ResourceChanged) error {
-		switch changed.Operation {
-		case resources.StatusUpdated:
-			return env.reconcile(ctx)
-		default:
-			return nil
-		}
-	})
-	err = env.rpc.Create(ctx, ref, resSpec, resources.ClaimedBy(which))
-
-	if err == nil {
-		d.created = true
-		d.ref = ref
-		d.watchToken = token
-		return nil
-	} else {
-		unwatch := env.watcher.Off(ctx, token)
-		return errors.Join(err, unwatch)
-	}
+	return d.service.Create(ctx, env, ref, resSpec)
 }
 
 func (d *daemonState) delete(ctx context.Context, env *resourceEnv) error {
-	if !d.created {
-		return nil
-	}
-	watchError := env.watcher.Off(ctx, d.watchToken)
-	_, deleteError := env.rpc.Delete(ctx, d.ref)
-	return errors.Join(watchError, deleteError)
+	return d.service.Delete(ctx, env)
 }

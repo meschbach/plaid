@@ -36,7 +36,7 @@ func (m *BuildRunStatusMock) FinishNow(ctx context.Context, exitCode int) error 
 
 func (m *BuildRunStatusMock) update(ctx context.Context) error {
 	if m.Ref == nil {
-		return errors.New("ref is nil")
+		return errors.New("Ref is nil")
 	}
 	exists, err := m.Store.UpdateStatus(ctx, *m.Ref, m.status)
 	if err != nil {

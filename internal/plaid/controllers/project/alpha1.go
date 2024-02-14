@@ -116,10 +116,11 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 			span.RecordError(err)
 			daemonErrors = append(daemonErrors, err)
 		} else {
+			subController.toStatus(daemonSpec, daemonStatus)
 			switch next {
 			case daemonWait:
 				span.AddEvent("daemon-wait", trace.WithAttributes(attribute.Bool("daemon.ready", daemonStatus.Ready)))
-				if !daemonStatus.Ready {
+				if !subController.targetReady {
 					allDaemonsReady = false
 				}
 				//do nothing
@@ -130,13 +131,13 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 					span.SetStatus(codes.Error, "failed to create daemon")
 					span.RecordError(err)
 					daemonErrors = append(daemonErrors, err)
+					continue
 				}
 				allDaemonsReady = false
 			case daemonFinished:
 				span.AddEvent("daemon-finished")
 				//todo: restart?
 			}
-			subController.toStatus(daemonSpec, daemonStatus)
 			status.Daemons = append(status.Daemons, daemonStatus)
 		}
 	}

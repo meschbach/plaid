@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"os"
+	"sync"
 	"testing"
 	"time"
 )
@@ -31,7 +32,7 @@ func TestProjectAlpha1(t *testing.T) {
 		plaid := resources.WithTestSubsystem(t, ctx)
 		plaid.AttachController("plaid.controllers.project", NewProjectSystem(plaid.Controller))
 
-		t.Run("When a new project is created with a oneshot", func(t *testing.T) {
+		t.Run("When a new project is Created with a oneshot", func(t *testing.T) {
 			ctx, _ = junk.TraceSubtest(t, ctx, tracer)
 			tmpDir := os.TempDir()
 			ctx, _ = junk.TraceSubtest(t, ctx, tracer)
@@ -52,7 +53,7 @@ func TestProjectAlpha1(t *testing.T) {
 			}
 			require.NoError(t, plaid.Store.Create(ctx, projectRef, projectSpec))
 
-			t.Run("Then a buildrun is created", func(t *testing.T) {
+			t.Run("Then a buildrun is Created", func(t *testing.T) {
 				ctx, _ = junk.TraceSubtest(t, ctx, tracer)
 				var projectStatus Alpha1Status
 				success, err := resources.WaitOn(ctx, resources.ForStatusState(plaid.Store, projectRef, &projectStatus, func(status *Alpha1Status) (bool, error) {
@@ -113,10 +114,27 @@ func TestProjectAlpha1(t *testing.T) {
 			})
 		})
 
-		t.Run("When a new project is created with a daemon service", func(t *testing.T) {
+		t.Run("When a new project is Created with a daemon service", func(t *testing.T) {
 			tmpDir := os.TempDir()
 			ctx, _ = junk.TraceSubtest(t, ctx, tracer)
 			projectRef := resources.FakeMetaOf(Alpha1)
+			projectWatcher, err := plaid.Store.Watcher(ctx)
+			require.NoError(t, err)
+
+			go func() {
+				for {
+					select {
+					case e := <-projectWatcher.Feed:
+						if err := projectWatcher.Digest(ctx, e); err != nil {
+							panic(err)
+						}
+					case <-ctx.Done():
+						return
+						//todo: don't ignore
+					}
+				}
+			}()
+
 			builderCommand := faker.Word()
 			runCommand := faker.Word()
 			projectSpec := Alpha1Spec{
@@ -135,7 +153,7 @@ func TestProjectAlpha1(t *testing.T) {
 			}
 			require.NoError(t, plaid.Store.Create(ctx, projectRef, projectSpec))
 
-			t.Run("Then a buildrun is created", func(t *testing.T) {
+			t.Run("Then a service is Created", func(t *testing.T) {
 				ctx, _ = junk.TraceSubtest(t, ctx, tracer)
 				var found []resources.Meta
 				for len(found) == 0 {
@@ -146,7 +164,7 @@ func TestProjectAlpha1(t *testing.T) {
 					time.Sleep(25 * time.Millisecond)
 				}
 				if assert.Len(t, found, 1) {
-					var spec buildrun.AlphaSpec1
+					var spec service.Alpha1Spec
 					exists, problem := plaid.Store.Get(ctx, found[0], &spec)
 					require.NoError(t, problem)
 					require.True(t, exists, "resource must still exist")
@@ -159,16 +177,57 @@ func TestProjectAlpha1(t *testing.T) {
 						assert.Equal(t, tmpDir, spec.Run.WorkingDir, "working directory set correctly")
 						assert.Equal(t, runCommand, spec.Run.Command, "run command set correctly")
 					})
+
+					t.Run("Then the service is not ready", func(t *testing.T) {
+						exists, err := plaid.Store.UpdateStatus(ctx, found[0], service.Alpha1Status{
+							Dependencies: nil,
+							Build: service.Alpha1BuildStatus{
+								State: Alpha1StateSuccess,
+							},
+							Ready: false,
+						})
+						require.NoError(t, err)
+						assert.True(t, exists, "service must exist")
+
+						var projectStatus Alpha1Status
+						exists, err = plaid.Store.GetStatus(ctx, projectRef, &projectStatus)
+						require.NoError(t, err)
+						require.True(t, exists, "resource should exist")
+
+						assert.False(t, projectStatus.Ready, "service is not ready")
+					})
+
+					t.Run("When the service is ready", func(t *testing.T) {
+						gate := sync.WaitGroup{}
+						gate.Add(1)
+						w, err := projectWatcher.OnResourceStatusChanged(ctx, projectRef, func(ctx context.Context, changed resources.ResourceChanged) error {
+							gate.Done()
+							return nil
+						})
+						require.NoError(t, err)
+						t.Cleanup(func() {
+							require.NoError(t, projectWatcher.Off(ctx, w))
+						})
+						exists, err := plaid.Store.UpdateStatus(ctx, found[0], service.Alpha1Status{
+							Dependencies: nil,
+							Build: service.Alpha1BuildStatus{
+								State: Alpha1StateSuccess,
+							},
+							Ready: true,
+						})
+						require.NoError(t, err)
+						assert.True(t, exists, "service must exist")
+
+						gate.Wait()
+						var projectStatus Alpha1Status
+						exists, err = plaid.Store.GetStatus(ctx, projectRef, &projectStatus)
+						require.NoError(t, err)
+						require.True(t, exists, "resource should exist")
+
+						assert.True(t, projectStatus.Ready, "service is ready")
+					})
 				}
 			})
 		})
 	})
-}
-
-func RequireGetStatus[T any](t *testing.T, ctx context.Context, store *resources.Client, ref resources.Meta) *T {
-	var status T
-	exists, err := store.GetStatus(ctx, ref, &status)
-	require.NoError(t, err)
-	require.True(t, exists, "must exists")
-	return &status
 }
