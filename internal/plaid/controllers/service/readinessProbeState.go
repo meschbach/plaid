@@ -26,6 +26,7 @@ func (r *readinessProbeState) reconcile(parent context.Context, env *resEnv, spe
 	ctx, span := tracer.Start(parent, "service.readinessProbe")
 	defer span.End()
 
+	status.Ready = false
 	step, err := r.decideNextStep(ctx, env)
 	if err != nil {
 		span.SetStatus(codes.Error, "failed to decide what to do")

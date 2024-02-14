@@ -8,7 +8,6 @@ import (
 	"github.com/meschbach/plaid/internal/plaid/controllers/probes"
 	"github.com/meschbach/plaid/resources"
 	"github.com/meschbach/plaid/resources/operator"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 )
 
@@ -146,18 +145,12 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *ser
 	}
 
 	// probe readiness
-	if keepGoing, err := rt.readiness.reconcile(ctx, &env, s.Readiness, &status); err != nil || !keepGoing {
-		if err != nil {
-			span.SetStatus(codes.Error, "readiness reconciliation")
-		} else if !keepGoing {
-			span.SetAttributes(attribute.Bool("ready", false))
-			span.AddEvent("self-not-ready")
-		}
-
+	_, err = rt.readiness.reconcile(ctx, &env, s.Readiness, &status)
+	if err != nil {
+		status.Ready = false
+		span.SetStatus(codes.Error, "readiness reconciliation")
 		return status, err
 	}
-	span.SetAttributes(attribute.Bool("ready", true))
-	status.Ready = true
 	return status, nil
 }
 
