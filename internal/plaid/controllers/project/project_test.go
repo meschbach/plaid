@@ -151,7 +151,28 @@ func TestProjectAlpha1(t *testing.T) {
 					},
 				},
 			}
+			statusChange := newChangeTracker()
+			_, err = projectWatcher.OnResource(ctx, projectRef, func(ctx context.Context, changed resources.ResourceChanged) error {
+				switch changed.Operation {
+				case resources.StatusUpdated:
+					statusChange.Update()
+				default:
+				}
+				return nil
+			})
+			require.NoError(t, err)
+
+			createStatusChange := statusChange.Fork()
 			require.NoError(t, plaid.Store.Create(ctx, projectRef, projectSpec))
+
+			t.Run("Then the initial status is setup", func(t *testing.T) {
+				createStatusChange.Wait()
+				var status Alpha1Status
+				exists, err := plaid.Store.GetStatus(ctx, projectRef, &status)
+				require.NoError(t, err)
+				assert.True(t, exists, "must exist")
+				assert.False(t, status.Ready, "initial status must not be ready")
+			})
 
 			t.Run("Then a service is Created", func(t *testing.T) {
 				ctx, _ = junk.TraceSubtest(t, ctx, tracer)
@@ -179,6 +200,7 @@ func TestProjectAlpha1(t *testing.T) {
 					})
 
 					t.Run("Then the service is not ready", func(t *testing.T) {
+						serviceChange := statusChange.Fork()
 						exists, err := plaid.Store.UpdateStatus(ctx, found[0], service.Alpha1Status{
 							Dependencies: nil,
 							Build: service.Alpha1BuildStatus{
@@ -189,6 +211,7 @@ func TestProjectAlpha1(t *testing.T) {
 						require.NoError(t, err)
 						assert.True(t, exists, "service must exist")
 
+						serviceChange.Wait()
 						var projectStatus Alpha1Status
 						exists, err = plaid.Store.GetStatus(ctx, projectRef, &projectStatus)
 						require.NoError(t, err)
@@ -198,16 +221,7 @@ func TestProjectAlpha1(t *testing.T) {
 					})
 
 					t.Run("When the service is ready", func(t *testing.T) {
-						gate := sync.WaitGroup{}
-						gate.Add(1)
-						w, err := projectWatcher.OnResourceStatusChanged(ctx, projectRef, func(ctx context.Context, changed resources.ResourceChanged) error {
-							gate.Done()
-							return nil
-						})
-						require.NoError(t, err)
-						t.Cleanup(func() {
-							require.NoError(t, projectWatcher.Off(ctx, w))
-						})
+						serviceChange := statusChange.Fork()
 						exists, err := plaid.Store.UpdateStatus(ctx, found[0], service.Alpha1Status{
 							Dependencies: nil,
 							Build: service.Alpha1BuildStatus{
@@ -218,7 +232,7 @@ func TestProjectAlpha1(t *testing.T) {
 						require.NoError(t, err)
 						assert.True(t, exists, "service must exist")
 
-						gate.Wait()
+						serviceChange.Wait()
 						var projectStatus Alpha1Status
 						exists, err = plaid.Store.GetStatus(ctx, projectRef, &projectStatus)
 						require.NoError(t, err)
@@ -230,4 +244,48 @@ func TestProjectAlpha1(t *testing.T) {
 			})
 		})
 	})
+}
+
+type changeTracker struct {
+	lock   *sync.Mutex
+	notice *sync.Cond
+	epoch  uint
+}
+
+func newChangeTracker() *changeTracker {
+	out := &changeTracker{
+		lock:  &sync.Mutex{},
+		epoch: 0,
+	}
+	out.notice = sync.NewCond(out.lock)
+	return out
+}
+
+func (c *changeTracker) Fork() *changePoint {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	return &changePoint{
+		tracker:    c,
+		afterEpoch: c.epoch,
+	}
+}
+
+func (c *changeTracker) Update() {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.epoch++
+	c.notice.Broadcast()
+}
+
+type changePoint struct {
+	tracker    *changeTracker
+	afterEpoch uint
+}
+
+func (c *changePoint) Wait() {
+	c.tracker.lock.Lock()
+	defer c.tracker.lock.Unlock()
+	for c.tracker.epoch <= c.afterEpoch {
+		c.tracker.notice.Wait()
+	}
 }
