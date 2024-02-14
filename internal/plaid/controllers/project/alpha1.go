@@ -167,9 +167,7 @@ func (a *alpha1Ops) Delete(ctx context.Context, which resources.Meta, rt *state)
 }
 
 type state struct {
-	bridge *operator.KindBridgeState
-	//todo: watches used anywhere?
-	watches  map[resources.Meta]resources.WatchToken
+	bridge   *operator.KindBridgeState
 	oneShots map[string]*oneShotState
 	daemons  map[string]*daemonState
 }
