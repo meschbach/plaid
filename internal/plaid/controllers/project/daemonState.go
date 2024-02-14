@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 	"fmt"
+	"github.com/meschbach/plaid/controllers/tooling"
 	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
 	"github.com/meschbach/plaid/internal/plaid/controllers/service"
 	"github.com/meschbach/plaid/resources"
@@ -30,7 +31,7 @@ func (d daemonNext) String() string {
 }
 
 type daemonState struct {
-	service     Subresource[service.Alpha1Status]
+	service     tooling.Subresource[service.Alpha1Status]
 	targetReady bool
 }
 
@@ -42,23 +43,23 @@ func (d *daemonState) toStatus(spec Alpha1DaemonSpec, status *Alpha1DaemonStatus
 	}
 }
 
-func (d *daemonState) decideNextStep(ctx context.Context, env *resourceEnv) (daemonNext, error) {
+func (d *daemonState) decideNextStep(ctx context.Context, env tooling.Env) (daemonNext, error) {
 	var procState service.Alpha1Status
 	step, err := d.service.Decide(ctx, env, &procState)
 	if err != nil {
 		return daemonWait, err
 	}
 	switch step {
-	case SubresourceCreated:
+	case tooling.SubresourceCreated:
 		return daemonCreate, nil
-	case SubresourceExists:
+	case tooling.SubresourceExists:
 		d.targetReady = procState.Ready
 	}
 	return daemonWait, nil
 }
 
-func (d *daemonState) create(ctx context.Context, env *resourceEnv, spec Alpha1Spec, daemonSpec Alpha1DaemonSpec) error {
-	which := env.which
+func (d *daemonState) create(ctx context.Context, env tooling.Env, spec Alpha1Spec, daemonSpec Alpha1DaemonSpec) error {
+	which := env.Subject
 
 	resSpec := service.Alpha1Spec{
 		Run: exec.TemplateAlpha1Spec{
@@ -86,6 +87,6 @@ func (d *daemonState) create(ctx context.Context, env *resourceEnv, spec Alpha1S
 	return d.service.Create(ctx, env, ref, resSpec)
 }
 
-func (d *daemonState) delete(ctx context.Context, env *resourceEnv) error {
+func (d *daemonState) delete(ctx context.Context, env tooling.Env) error {
 	return d.service.Delete(ctx, env)
 }

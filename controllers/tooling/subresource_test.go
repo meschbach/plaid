@@ -1,4 +1,4 @@
-package project
+package tooling
 
 import (
 	"context"
@@ -27,11 +27,11 @@ func TestClaimed(t *testing.T) {
 		require.NoError(t, err)
 
 		reconcile := 0
-		env := &resourceEnv{
-			which:   claimed,
-			rpc:     core.Store,
-			watcher: watcher,
-			reconcile: func(ctx context.Context) error {
+		env := Env{
+			Subject: claimed,
+			Storage: core.Store,
+			Watcher: watcher,
+			Reconcile: func(ctx context.Context) error {
 				reconcile++
 				return nil
 			},

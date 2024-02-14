@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 	"fmt"
+	"github.com/meschbach/plaid/controllers/tooling"
 	"github.com/meschbach/plaid/internal/plaid/controllers/buildrun"
 	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
 	"github.com/meschbach/plaid/resources"
@@ -23,7 +24,7 @@ const (
 )
 
 type oneShotState struct {
-	buildRun    Subresource[buildrun.AlphaStatus1]
+	buildRun    tooling.Subresource[buildrun.AlphaStatus1]
 	finishState int
 }
 
@@ -46,16 +47,16 @@ func (o *oneShotState) toStatus(status *Alpha1OneShotStatus) {
 	}
 }
 
-func (o *oneShotState) decideNextStep(ctx context.Context, resEnv *resourceEnv) (oneShotNext, error) {
+func (o *oneShotState) decideNextStep(ctx context.Context, resEnv tooling.Env) (oneShotNext, error) {
 	var procState buildrun.AlphaStatus1
 	step, err := o.buildRun.Decide(ctx, resEnv, &procState)
 	if err != nil {
 		return oneShotWait, err
 	}
 	switch step {
-	case SubresourceCreated:
+	case tooling.SubresourceCreated:
 		return oneShotCreate, nil
-	case SubresourceExists:
+	case tooling.SubresourceExists:
 		//fall through
 	}
 	if procState.Run.Result == nil || procState.Run.Result.Finished == nil {
@@ -70,8 +71,8 @@ func (o *oneShotState) decideNextStep(ctx context.Context, resEnv *resourceEnv) 
 	return oneShotFinished, nil
 }
 
-func (o *oneShotState) create(ctx context.Context, resEnv *resourceEnv, spec Alpha1Spec, oneShotSpec Alpha1OneShotSpec) error {
-	which := resEnv.which
+func (o *oneShotState) create(ctx context.Context, resEnv tooling.Env, spec Alpha1Spec, oneShotSpec Alpha1OneShotSpec) error {
+	which := resEnv.Subject
 
 	ref := resources.Meta{
 		Type: buildrun.Alpha1,
@@ -93,6 +94,6 @@ func (o *oneShotState) create(ctx context.Context, resEnv *resourceEnv, spec Alp
 	return o.buildRun.Create(ctx, resEnv, ref, buildSpec)
 }
 
-func (o *oneShotState) delete(ctx context.Context, resEnv *resourceEnv) error {
+func (o *oneShotState) delete(ctx context.Context, resEnv tooling.Env) error {
 	return o.buildRun.Delete(ctx, resEnv)
 }

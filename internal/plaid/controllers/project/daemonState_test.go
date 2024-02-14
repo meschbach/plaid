@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 	"github.com/go-faker/faker/v4"
+	"github.com/meschbach/plaid/controllers/tooling"
 	"github.com/meschbach/plaid/internal/plaid/controllers/service"
 	"github.com/meschbach/plaid/resources"
 	"github.com/stretchr/testify/assert"
@@ -21,11 +22,11 @@ func TestDaemonState(t *testing.T) {
 
 		reconciled := 0
 		exampleProject := resources.Meta{Type: Alpha1, Name: faker.Name()}
-		env := &resourceEnv{
-			which:   exampleProject,
-			rpc:     plaid.Store,
-			watcher: watcher,
-			reconcile: func(ctx context.Context) error {
+		env := tooling.Env{
+			Subject: exampleProject,
+			Storage: plaid.Store,
+			Watcher: watcher,
+			Reconcile: func(ctx context.Context) error {
 				reconciled++
 				return nil
 			},

@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 	"errors"
+	"github.com/meschbach/plaid/controllers/tooling"
 	"github.com/meschbach/plaid/resources"
 	"github.com/meschbach/plaid/resources/operator"
 	"go.opentelemetry.io/otel/attribute"
@@ -41,11 +42,11 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 	status := Alpha1Status{}
 
 	//for each one shot
-	env := &resourceEnv{
-		which:   which,
-		rpc:     a.client,
-		watcher: a.watcher,
-		reconcile: func(ctx context.Context) error {
+	env := tooling.Env{
+		Subject: which,
+		Storage: a.client,
+		Watcher: a.watcher,
+		Reconcile: func(ctx context.Context) error {
 			return rt.bridge.OnResourceChange(ctx, which)
 		},
 	}
@@ -150,10 +151,10 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 }
 
 func (a *alpha1Ops) Delete(ctx context.Context, which resources.Meta, rt *state) error {
-	env := &resourceEnv{
-		which:   which,
-		rpc:     a.client,
-		watcher: a.watcher,
+	env := tooling.Env{
+		Subject: which,
+		Storage: a.client,
+		Watcher: a.watcher,
 	}
 
 	var problems []error

@@ -1,4 +1,4 @@
-package project
+package tooling
 
 import (
 	"context"
@@ -25,6 +25,7 @@ func (c SubresourceNextStep) String() string {
 	}
 }
 
+// Subresource contains the reusable logic for managing a claimed resource
 type Subresource[Status any] struct {
 	// Created indicates the claimed resource has been created and Ref is valid.  Clients should not modify this field directly
 	Created bool
@@ -34,12 +35,12 @@ type Subresource[Status any] struct {
 	token      resources.WatchToken
 }
 
-func (c *Subresource[Status]) Decide(ctx context.Context, env *resourceEnv, status *Status) (SubresourceNextStep, error) {
+func (c *Subresource[Status]) Decide(ctx context.Context, env Env, status *Status) (SubresourceNextStep, error) {
 	if !c.Created {
 		return SubresourceCreated, nil
 	}
 
-	exists, err := env.rpc.GetStatus(ctx, c.Ref, status)
+	exists, err := env.Storage.GetStatus(ctx, c.Ref, status)
 	if err != nil {
 		return SubresourceExists, err
 	}
@@ -54,21 +55,21 @@ func (c *Subresource[Status]) Decide(ctx context.Context, env *resourceEnv, stat
 	return SubresourceExists, nil
 }
 
-func (c *Subresource[Status]) cleanupWatcher(ctx context.Context, env *resourceEnv) error {
+func (c *Subresource[Status]) cleanupWatcher(ctx context.Context, env Env) error {
 	if !c.isWatching {
 		return nil
 	}
 
-	if err := env.watcher.Off(ctx, c.token); err != nil {
+	if err := env.Watcher.Off(ctx, c.token); err != nil {
 		return err
 	}
 	c.isWatching = false
 	return nil
 }
 
-func (c *Subresource[Status]) Create(ctx context.Context, env *resourceEnv, ref resources.Meta, spec any, opts ...resources.CreateOpt) error {
-	token, err := env.watcher.OnResourceStatusChanged(ctx, ref, func(ctx context.Context, changed resources.ResourceChanged) error {
-		return env.reconcile(ctx)
+func (c *Subresource[Status]) Create(ctx context.Context, env Env, ref resources.Meta, spec any, opts ...resources.CreateOpt) error {
+	token, err := env.Watcher.OnResourceStatusChanged(ctx, ref, func(ctx context.Context, changed resources.ResourceChanged) error {
+		return env.Reconcile(ctx)
 	})
 	if err != nil {
 		return err
@@ -76,7 +77,7 @@ func (c *Subresource[Status]) Create(ctx context.Context, env *resourceEnv, ref 
 	c.isWatching = true
 	c.token = token
 
-	if err := env.rpc.Create(ctx, ref, spec, append(opts, resources.ClaimedBy(env.which))...); err != nil {
+	if err := env.Storage.Create(ctx, ref, spec, append(opts, resources.ClaimedBy(env.Subject))...); err != nil {
 		if watcherErr := c.cleanupWatcher(ctx, env); watcherErr != nil {
 			return errors.Join(watcherErr, err)
 		}
@@ -87,13 +88,13 @@ func (c *Subresource[Status]) Create(ctx context.Context, env *resourceEnv, ref 
 	return nil
 }
 
-func (c *Subresource[Status]) Delete(ctx context.Context, env *resourceEnv) error {
+func (c *Subresource[Status]) Delete(ctx context.Context, env Env) error {
 	if !c.Created {
 		return c.cleanupWatcher(ctx, env)
 	}
 
 	cleanUpErr := c.cleanupWatcher(ctx, env)
-	_, deleteErr := env.rpc.Delete(ctx, c.Ref)
+	_, deleteErr := env.Storage.Delete(ctx, c.Ref)
 	c.Created = false
 	return errors.Join(cleanUpErr, deleteErr)
 }
