@@ -34,12 +34,12 @@ func (b builderNextStep) String() string {
 	}
 }
 
-func (b *builderState) decideNextStep(ctx context.Context, env resEnv) (builderNextStep, Alpha1BuildStatus, error) {
+func (b *builderState) decideNextStep(ctx context.Context, env tooling.Env) (builderNextStep, Alpha1BuildStatus, error) {
 	status := Alpha1BuildStatus{
 		State: "controller-error",
 	}
 	var buildCommandStatus exec.InvocationAlphaV1Status
-	subresourceStep, err := b.buildExec.Decide(ctx, env.toTooling(), &buildCommandStatus)
+	subresourceStep, err := b.buildExec.Decide(ctx, env, &buildCommandStatus)
 	if err != nil {
 		return builderNextWait, status, err
 	}
@@ -66,18 +66,18 @@ func (b *builderState) decideNextStep(ctx context.Context, env resEnv) (builderN
 	}
 }
 
-func (b *builderState) create(ctx context.Context, env resEnv, templateSpec *exec.TemplateAlpha1Spec, status *Alpha1BuildStatus) error {
-	ref, spec, err := templateSpec.AsSpec(env.object.Name)
+func (b *builderState) create(ctx context.Context, env tooling.Env, templateSpec *exec.TemplateAlpha1Spec, status *Alpha1BuildStatus) error {
+	ref, spec, err := templateSpec.AsSpec(env.Subject.Name)
 	if err != nil {
 		return err
 	}
-	if err := b.buildExec.Create(ctx, env.toTooling(), ref, spec); err != nil {
+	if err := b.buildExec.Create(ctx, env, ref, spec); err != nil {
 		return err
 	}
 	status.Ref = &ref
 	return nil
 }
 
-func (b *builderState) delete(ctx context.Context, env resEnv) error {
-	return b.buildExec.Delete(ctx, env.toTooling())
+func (b *builderState) delete(ctx context.Context, env tooling.Env) error {
+	return b.buildExec.Delete(ctx, env)
 }

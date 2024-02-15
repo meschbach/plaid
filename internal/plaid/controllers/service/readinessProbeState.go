@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/meschbach/plaid/controllers/tooling"
 	"github.com/meschbach/plaid/internal/plaid/controllers/probes"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -22,7 +23,7 @@ type readinessProbeState struct {
 	state   probes.TemplateAlpha1State
 }
 
-func (r *readinessProbeState) reconcile(parent context.Context, env *resEnv, spec *probes.TemplateAlpha1Spec, status *Alpha1Status) (bool, error) {
+func (r *readinessProbeState) reconcile(parent context.Context, env tooling.Env, spec *probes.TemplateAlpha1Spec, status *Alpha1Status) (bool, error) {
 	if spec == nil { //no readiness probes
 		status.Ready = true
 		return true, nil
@@ -42,10 +43,10 @@ func (r *readinessProbeState) reconcile(parent context.Context, env *resEnv, spe
 	case readinessProbeCreate:
 		span.AddEvent("creating-probe")
 		r.state, err = spec.Instantiate(ctx, probes.TemplateEnv{
-			ClaimedBy: env.object,
-			Storage:   env.rpc,
-			Watcher:   env.watcher,
-			OnChange:  env.reconcile,
+			ClaimedBy: env.Subject,
+			Storage:   env.Storage,
+			Watcher:   env.Watcher,
+			OnChange:  env.Reconcile,
 		})
 		if err == nil {
 			r.created = true
@@ -62,11 +63,11 @@ func (r *readinessProbeState) reconcile(parent context.Context, env *resEnv, spe
 	}
 }
 
-func (r *readinessProbeState) decideNextStep(ctx context.Context, env *resEnv) (readinessProbeStep, error) {
+func (r *readinessProbeState) decideNextStep(ctx context.Context, env tooling.Env) (readinessProbeStep, error) {
 	if !r.created {
 		return readinessProbeCreate, nil
 	}
 
-	err := r.state.Reconcile(ctx, env.rpc)
+	err := r.state.Reconcile(ctx, env.Storage)
 	return readinessProbeWait, err
 }

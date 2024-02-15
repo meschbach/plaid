@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"github.com/meschbach/plaid/controllers/tooling"
 	"github.com/meschbach/plaid/internal/plaid/controllers/dependencies"
 	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
 	"github.com/meschbach/plaid/internal/plaid/controllers/probes"
@@ -78,11 +79,11 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *ser
 	ctx, span := tracer.Start(parent, "service.alpha1/Update")
 	defer span.End()
 
-	env := resEnv{
-		object:  which,
-		rpc:     a.client,
-		watcher: a.watcher,
-		reconcile: func(ctx context.Context) error {
+	env := tooling.Env{
+		Subject: which,
+		Storage: a.client,
+		Watcher: a.watcher,
+		Reconcile: func(ctx context.Context) error {
 			return rt.bridge.OnResourceChange(ctx, which)
 		},
 	}
@@ -94,7 +95,7 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *ser
 		Storage: a.client,
 		Watcher: a.watcher,
 		OnChange: func(ctx context.Context) error {
-			return env.reconcile(ctx)
+			return env.Reconcile(ctx)
 		},
 	})
 	for _, s := range depStatus {
@@ -160,7 +161,7 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *ser
 	}
 
 	// probe readiness
-	_, err = rt.readiness.reconcile(ctx, &env, s.Readiness, &status)
+	_, err = rt.readiness.reconcile(ctx, env, s.Readiness, &status)
 	if err != nil {
 		status.Ready = false
 		span.SetStatus(codes.Error, "readiness reconciliation")
@@ -170,11 +171,11 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *ser
 }
 
 func (a *alpha1Ops) Delete(ctx context.Context, which resources.Meta, rt *serviceState) error {
-	env := resEnv{
-		object:  which,
-		rpc:     a.client,
-		watcher: a.watcher,
-		reconcile: func(ctx context.Context) error {
+	env := tooling.Env{
+		Subject: which,
+		Storage: a.client,
+		Watcher: a.watcher,
+		Reconcile: func(ctx context.Context) error {
 			return rt.bridge.OnResourceChange(ctx, which)
 		},
 	}

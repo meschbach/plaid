@@ -20,9 +20,9 @@ type runState struct {
 	exec tooling.Subresource[exec.InvocationAlphaV1Status]
 }
 
-func (r *runState) decideNextStep(ctx context.Context, env resEnv) (runStateStep, error) {
+func (r *runState) decideNextStep(ctx context.Context, env tooling.Env) (runStateStep, error) {
 	var status exec.InvocationAlphaV1Status
-	step, err := r.exec.Decide(ctx, env.toTooling(), &status)
+	step, err := r.exec.Decide(ctx, env, &status)
 	if err != nil {
 		return runStateWait, err
 	}
@@ -40,16 +40,16 @@ func (r *runState) decideNextStep(ctx context.Context, env resEnv) (runStateStep
 	}
 }
 
-func (r *runState) create(ctx context.Context, env resEnv, spec exec.TemplateAlpha1Spec) error {
-	ref, proposedSpec, err := spec.AsSpec(env.object.Name)
+func (r *runState) create(ctx context.Context, env tooling.Env, spec exec.TemplateAlpha1Spec) error {
+	ref, proposedSpec, err := spec.AsSpec(env.Subject.Name)
 	if err != nil {
 		return err
 	}
-	return r.exec.Create(ctx, env.toTooling(), ref, proposedSpec, resources.ClaimedBy(env.object))
+	return r.exec.Create(ctx, env, ref, proposedSpec, resources.ClaimedBy(env.Subject))
 }
 
-func (r *runState) delete(ctx context.Context, env resEnv) error {
-	return r.exec.Delete(ctx, env.toTooling())
+func (r *runState) delete(ctx context.Context, env tooling.Env) error {
+	return r.exec.Delete(ctx, env)
 }
 
 func (r *runState) toStatus() Alpha1RunStatus {
