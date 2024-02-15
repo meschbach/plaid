@@ -39,7 +39,8 @@ type Alpha1StatusDependency struct {
 }
 
 type Alpha1BuildStatus struct {
-	State string `json:"state"`
+	State string          `json:"state"`
+	Ref   *resources.Meta `json:"ref,omitempty"`
 }
 
 const StateNotReady = "not-ready"
@@ -118,17 +119,16 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *ser
 			span.SetStatus(codes.Error, "failed to decide next steps")
 			return status, err
 		} else {
+			status.Build = buildStatus
 			switch step {
 			case builderNextCreate:
-				status.Build = buildStatus
-				if err := rt.build.create(ctx, env, s.Build); err != nil {
+				if err := rt.build.create(ctx, env, s.Build, &status.Build); err != nil {
 					span.SetStatus(codes.Error, "build error")
 					status.Build.State = "internal-error"
 				}
 				return status, err
 			case builderNextWait:
 				span.AddEvent("builder-wait")
-				status.Build = buildStatus
 				return status, err
 			case builderStateSuccessfullyCompleted:
 				//continue

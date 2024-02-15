@@ -4,15 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/meschbach/plaid/controllers/tooling"
 	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
-	"github.com/meschbach/plaid/resources"
 )
 
 // todo think about merging with buildrun.builderState as they effectively do the same thing
 type builderState struct {
-	createdBuild   bool
-	lastBuild      resources.Meta
-	lastWatchToken resources.WatchToken
+	buildExec tooling.Subresource[exec.InvocationAlphaV1Status]
 }
 
 type builderNextStep int
@@ -40,55 +38,46 @@ func (b *builderState) decideNextStep(ctx context.Context, env resEnv) (builderN
 	status := Alpha1BuildStatus{
 		State: "controller-error",
 	}
-	if !b.createdBuild {
-		status.State = "creating"
-		return builderNextCreate, status, nil
-	}
-	status.State = "created"
-
-	var procStatus exec.InvocationAlphaV1Status
-	exists, err := env.rpc.GetStatus(ctx, b.lastBuild, &procStatus)
+	var buildCommandStatus exec.InvocationAlphaV1Status
+	subresourceStep, err := b.buildExec.Decide(ctx, env.toTooling(), &buildCommandStatus)
 	if err != nil {
-		status.State = "internal-error"
 		return builderNextWait, status, err
 	}
-	if !exists {
-		status.State = "proc-creating"
-		return builderNextWait, status, nil
-	} //need to wait for its existence
-	status.State = "proc-exec"
-
-	if procStatus.Finished == nil {
-		return builderNextWait, status, nil
+	switch subresourceStep {
+	case tooling.SubresourceCreate:
+		status.State = "create"
+		return builderNextCreate, status, err
+	case tooling.SubresourceExists:
+		step := builderNextWait
+		status.Ref = &b.buildExec.Ref
+		if buildCommandStatus.Started == nil {
+			status.State = "starting"
+		} else if buildCommandStatus.Finished == nil {
+			status.State = "running"
+		} else if buildCommandStatus.ExitStatus == nil {
+			status.State = "finishing"
+		} else {
+			status.State = "finished"
+			step = builderStateSuccessfullyCompleted
+		}
+		return step, status, nil
+	default:
+		return builderNextWait, status, errors.New("unknown subresource state " + subresourceStep.String())
 	}
-	status.State = "completed"
-	return builderStateSuccessfullyCompleted, status, nil
 }
 
-func (b *builderState) create(ctx context.Context, env resEnv, spec *exec.TemplateAlpha1Spec) error {
-	//todo: annotation to reacquire in case of failure
-	ref, watchToken, err := spec.CreateResource(ctx, env.rpc, env.object, nil, env.watcher, func(ctx context.Context, changed resources.ResourceChanged) error {
-		switch changed.Operation {
-		case resources.StatusUpdated:
-			return env.reconcile(ctx)
-		default:
-			return nil
-		}
-	})
+func (b *builderState) create(ctx context.Context, env resEnv, templateSpec *exec.TemplateAlpha1Spec, status *Alpha1BuildStatus) error {
+	ref, spec, err := templateSpec.AsSpec(env.object.Name)
 	if err != nil {
 		return err
 	}
-	b.createdBuild = true
-	b.lastBuild = ref
-	b.lastWatchToken = watchToken
+	if err := b.buildExec.Create(ctx, env.toTooling(), ref, spec); err != nil {
+		return err
+	}
+	status.Ref = &ref
 	return nil
 }
 
 func (b *builderState) delete(ctx context.Context, env resEnv) error {
-	if !b.createdBuild {
-		return nil
-	}
-	watchError := env.watcher.Off(ctx, b.lastWatchToken)
-	_, deleteError := env.rpc.Delete(ctx, b.lastBuild)
-	return errors.Join(watchError, deleteError)
+	return b.buildExec.Delete(ctx, env.toTooling())
 }
