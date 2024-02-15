@@ -54,7 +54,7 @@ func (o *oneShotState) decideNextStep(ctx context.Context, resEnv tooling.Env) (
 		return oneShotWait, err
 	}
 	switch step {
-	case tooling.SubresourceCreated:
+	case tooling.SubresourceCreate:
 		return oneShotCreate, nil
 	case tooling.SubresourceExists:
 		//fall through

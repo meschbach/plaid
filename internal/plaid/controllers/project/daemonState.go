@@ -50,7 +50,7 @@ func (d *daemonState) decideNextStep(ctx context.Context, env tooling.Env) (daem
 		return daemonWait, err
 	}
 	switch step {
-	case tooling.SubresourceCreated:
+	case tooling.SubresourceCreate:
 		return daemonCreate, nil
 	case tooling.SubresourceExists:
 		d.targetReady = procState.Ready

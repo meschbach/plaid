@@ -41,7 +41,7 @@ func TestClaimed(t *testing.T) {
 			var status ExampleStatus
 			step, err := c.Decide(ctx, env, &status)
 			require.NoError(t, err)
-			assert.Equal(t, SubresourceCreated, step, "Then thee result is create")
+			assert.Equal(t, SubresourceCreate, step, "Then thee result is create")
 
 			t.Run("And the resource is created", func(t *testing.T) {
 				ref := resources.FakeMeta()

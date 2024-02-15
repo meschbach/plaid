@@ -11,13 +11,14 @@ type SubresourceNextStep uint8
 
 const (
 	SubresourceExists SubresourceNextStep = iota
-	SubresourceCreated
+	// SubresourceCreate indicates the next step to reconcile the state is to create the resource in questions.
+	SubresourceCreate
 )
 
 func (c SubresourceNextStep) String() string {
 	switch c {
-	case SubresourceCreated:
-		return "claimed-created"
+	case SubresourceCreate:
+		return "claimed-create"
 	case SubresourceExists:
 		return "claimed-exists"
 	default:
@@ -37,7 +38,7 @@ type Subresource[Status any] struct {
 
 func (c *Subresource[Status]) Decide(ctx context.Context, env Env, status *Status) (SubresourceNextStep, error) {
 	if !c.Created {
-		return SubresourceCreated, nil
+		return SubresourceCreate, nil
 	}
 
 	exists, err := env.Storage.GetStatus(ctx, c.Ref, status)
@@ -49,7 +50,7 @@ func (c *Subresource[Status]) Decide(ctx context.Context, env Env, status *Statu
 		if err := c.cleanupWatcher(ctx, env); err != nil {
 			return SubresourceExists, err
 		}
-		return SubresourceCreated, nil
+		return SubresourceCreate, nil
 	}
 	//todo: check status to ensure it is in the correct state
 	return SubresourceExists, nil

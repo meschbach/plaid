@@ -22,17 +22,12 @@ type runState struct {
 
 func (r *runState) decideNextStep(ctx context.Context, env resEnv) (runStateStep, error) {
 	var status exec.InvocationAlphaV1Status
-	step, err := r.exec.Decide(ctx, tooling.Env{
-		Subject:   env.object,
-		Storage:   env.rpc,
-		Watcher:   env.watcher,
-		Reconcile: env.reconcile,
-	}, &status)
+	step, err := r.exec.Decide(ctx, env.toTooling(), &status)
 	if err != nil {
 		return runStateWait, err
 	}
 	switch step {
-	case tooling.SubresourceCreated:
+	case tooling.SubresourceCreate:
 		return runStateCreate, nil
 	case tooling.SubresourceExists:
 		if status.Started == nil {
