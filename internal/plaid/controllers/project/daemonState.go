@@ -37,9 +37,9 @@ type daemonState struct {
 
 func (d *daemonState) toStatus(spec Alpha1DaemonSpec, status *Alpha1DaemonStatus) {
 	status.Name = spec.Name
+	status.Ready = d.targetReady
 	if d.service.Created {
 		status.Current = &d.service.Ref
-		status.Ready = d.targetReady
 	}
 }
 
