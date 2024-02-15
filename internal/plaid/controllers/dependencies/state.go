@@ -35,6 +35,7 @@ func (s *State) Init(deps Alpha1Spec) {
 	}
 }
 
+// Reconcile updates the internal state and determines if all dependencies are ready
 func (s *State) Reconcile(ctx context.Context, env Env) (ready bool, status Alpha1Status, err error) {
 	var allProblems []error
 	allReady := true

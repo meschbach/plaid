@@ -29,6 +29,7 @@ type Alpha1Spec struct {
 type Alpha1Status struct {
 	Dependencies []Alpha1StatusDependency `json:"dependencies,omitempty"`
 	Build        Alpha1BuildStatus        `json:"build,omitempty"`
+	Run          Alpha1RunStatus          `json:"run"`
 	Ready        bool                     `json:"ready"`
 }
 
@@ -39,6 +40,14 @@ type Alpha1StatusDependency struct {
 
 type Alpha1BuildStatus struct {
 	State string `json:"state"`
+}
+
+const StateNotReady = "not-ready"
+const Running = "running"
+
+type Alpha1RunStatus struct {
+	State string          `json:"state"`
+	Ref   *resources.Meta `json:"ref,omitempty"`
 }
 
 type alpha1Ops struct {
@@ -78,6 +87,7 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *ser
 	}
 
 	status := Alpha1Status{}
+	status.Run = rt.run.toStatus()
 	//todo: alpha2 should just use the status directly
 	allReady, depStatus, err := rt.dependencies.Reconcile(ctx, dependencies.Env{
 		Storage: a.client,
@@ -97,7 +107,6 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *ser
 		span.RecordError(err)
 		return status, err
 	}
-	status.Ready = allReady
 	if !allReady {
 		span.AddEvent("dependencies-not-ready")
 		return status, nil
@@ -132,6 +141,7 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *ser
 		span.SetStatus(codes.Error, "runtime error")
 		return status, err
 	} else {
+		status.Run = rt.run.toStatus()
 		switch step {
 		case runStateCreate:
 			span.AddEvent("run-create")
@@ -139,8 +149,13 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *ser
 				span.SetStatus(codes.Error, "runtime create error")
 				return status, err
 			}
+			status.Run = rt.run.toStatus()
+			return status, nil
 		case runStateWait:
 			span.AddEvent("run-wait")
+			return status, err
+		case runStateRunning:
+			span.AddEvent("run-running")
 		}
 	}
 

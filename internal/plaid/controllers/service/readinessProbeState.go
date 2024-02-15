@@ -23,6 +23,11 @@ type readinessProbeState struct {
 }
 
 func (r *readinessProbeState) reconcile(parent context.Context, env *resEnv, spec *probes.TemplateAlpha1Spec, status *Alpha1Status) (bool, error) {
+	if spec == nil { //no readiness probes
+		status.Ready = true
+		return true, nil
+	}
+
 	ctx, span := tracer.Start(parent, "service.readinessProbe")
 	defer span.End()
 

@@ -124,6 +124,19 @@ func (c *ClientWatcher) OnAll(ctx context.Context, consumer OnResourceChanged) (
 	return token, err
 }
 
+func (c *ClientWatcher) Serve(ctx context.Context) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case e := <-c.Feed:
+			if err := c.Digest(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 type watcherAddStatusChangedOp struct {
 	watchID int
 	which   Meta
