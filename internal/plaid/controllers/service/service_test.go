@@ -41,30 +41,20 @@ func TestService(t *testing.T) {
 
 		t.Run("Then a new command should be created", func(t *testing.T) {
 			createStatusChange.Wait()
-			var status Alpha1Status
-			exists, err := store.GetStatus(ctx, serviceRef, &status)
-			require.NoError(t, err)
-			assert.True(t, exists, "must exist")
+			status := MustGetStatus[Alpha1Status](t, ctx, store, serviceRef)
 			assert.False(t, status.Ready, "must not be ready %#v", status)
 			assert.Equal(t, Running, status.Run.State, "must be in a running state")
 			assert.NotNil(t, status.Run.Ref, "must reference a run")
 
 			t.Run("When the process has started", func(t *testing.T) {
 				runRef := *status.Run.Ref
-				procRun := serviceStatusUpdate.Fork()
 				now := time.Now()
-				exists, err := store.UpdateStatus(ctx, runRef, exec.InvocationAlphaV1Status{
+				MustUpdateStatusAndWait(t, ctx, store, serviceStatusUpdate, runRef, exec.InvocationAlphaV1Status{
 					Started: &now,
 					Healthy: true,
 				})
-				require.NoError(t, err)
-				require.True(t, exists, "invocation must exit")
-				procRun.Wait()
 
-				var status Alpha1Status
-				exists, err = store.GetStatus(ctx, serviceRef, &status)
-				require.NoError(t, err)
-				assert.True(t, exists, "must exist")
+				status := MustGetStatus[Alpha1Status](t, ctx, store, serviceRef)
 				assert.True(t, status.Ready, "should be ready now %#v", status)
 				assert.Equal(t, Running, status.Run.State, "must be in a running state")
 				assert.NotNil(t, status.Run.Ref, "must reference a run")
@@ -93,10 +83,7 @@ func TestService(t *testing.T) {
 
 		t.Run("When the dependency does not exist", func(t *testing.T) {
 			createStatusChange.Wait()
-			var status Alpha1Status
-			exists, err := store.GetStatus(ctx, serviceRef, &status)
-			require.NoError(t, err)
-			assert.True(t, exists, "must exist")
+			status := MustGetStatus[Alpha1Status](t, ctx, store, serviceRef)
 			assert.False(t, status.Ready, "must not be ready %#v", status)
 			if assert.Len(t, status.Dependencies, 1) {
 				assert.False(t, status.Dependencies[0].Ready)
@@ -106,26 +93,16 @@ func TestService(t *testing.T) {
 			assert.Nil(t, status.Run.Ref, "no run reference created")
 
 			t.Run("And the dependency is created", func(t *testing.T) {
-				require.NoError(t, store.Create(ctx, spec.Dependencies[0], dependencies.ReadyAlpha1Status{Ready: true}))
+				require.NoError(t, store.Create(ctx, spec.Dependencies[0], dependencies.ReadyAlpha1Status{Ready: false}))
 
-				var status Alpha1Status
-				exists, err := store.GetStatus(ctx, serviceRef, &status)
-				require.NoError(t, err)
-				assert.True(t, exists, "service must still exist")
+				status := MustGetStatus[Alpha1Status](t, ctx, store, serviceRef)
 				assert.Nil(t, status.Run.Ref, "run should not be created")
 			})
 
 			t.Run("And the dependency becomes ready", func(t *testing.T) {
-				dependencyReady := subject.Status.Fork()
-				exists, err := store.UpdateStatus(ctx, spec.Dependencies[0], dependencies.ReadyAlpha1Status{Ready: true})
-				require.NoError(t, err)
-				require.True(t, exists)
+				MustUpdateStatusAndWait(t, ctx, store, subject.Status, spec.Dependencies[0], dependencies.ReadyAlpha1Status{Ready: true})
 
-				dependencyReady.Wait()
-				var status Alpha1Status
-				exists, err = store.GetStatus(ctx, serviceRef, &status)
-				require.NoError(t, err)
-				assert.True(t, exists, "service must still exist")
+				status := MustGetStatus[Alpha1Status](t, ctx, store, serviceRef)
 				if assert.Len(t, status.Dependencies, 1) {
 					assert.True(t, status.Dependencies[0].Ready, "dep must be ready")
 				}
