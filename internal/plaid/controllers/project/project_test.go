@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"os"
-	"sync"
 	"testing"
 	"time"
 )
@@ -120,20 +119,7 @@ func TestProjectAlpha1(t *testing.T) {
 			projectRef := resources.FakeMetaOf(Alpha1)
 			projectWatcher, err := plaid.Store.Watcher(ctx)
 			require.NoError(t, err)
-
-			go func() {
-				for {
-					select {
-					case e := <-projectWatcher.Feed:
-						if err := projectWatcher.Digest(ctx, e); err != nil {
-							panic(err)
-						}
-					case <-ctx.Done():
-						return
-						//todo: don't ignore
-					}
-				}
-			}()
+			plaid.AttachController("test.watcher", projectWatcher)
 
 			builderCommand := faker.Word()
 			runCommand := faker.Word()
@@ -151,7 +137,7 @@ func TestProjectAlpha1(t *testing.T) {
 					},
 				},
 			}
-			statusChange := newChangeTracker()
+			statusChange := junk.NewChangeTracker()
 			_, err = projectWatcher.OnResource(ctx, projectRef, func(ctx context.Context, changed resources.ResourceChanged) error {
 				switch changed.Operation {
 				case resources.StatusUpdated:
@@ -244,48 +230,4 @@ func TestProjectAlpha1(t *testing.T) {
 			})
 		})
 	})
-}
-
-type changeTracker struct {
-	lock   *sync.Mutex
-	notice *sync.Cond
-	epoch  uint
-}
-
-func newChangeTracker() *changeTracker {
-	out := &changeTracker{
-		lock:  &sync.Mutex{},
-		epoch: 0,
-	}
-	out.notice = sync.NewCond(out.lock)
-	return out
-}
-
-func (c *changeTracker) Fork() *changePoint {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	return &changePoint{
-		tracker:    c,
-		afterEpoch: c.epoch,
-	}
-}
-
-func (c *changeTracker) Update() {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	c.epoch++
-	c.notice.Broadcast()
-}
-
-type changePoint struct {
-	tracker    *changeTracker
-	afterEpoch uint
-}
-
-func (c *changePoint) Wait() {
-	c.tracker.lock.Lock()
-	defer c.tracker.lock.Unlock()
-	for c.tracker.epoch <= c.afterEpoch {
-		c.tracker.notice.Wait()
-	}
 }
