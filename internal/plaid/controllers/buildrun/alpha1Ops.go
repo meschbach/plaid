@@ -2,6 +2,7 @@ package buildrun
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/meschbach/plaid/internal/plaid/controllers/dependencies"
 	"github.com/meschbach/plaid/resources"
@@ -96,4 +97,16 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 		}
 	}
 	return status, nil
+}
+
+func (a *alpha1Ops) Delete(ctx context.Context, which resources.Meta, rt *state) error {
+	runtimeEnv := &stateEnv{
+		object:  which,
+		rpc:     a.client,
+		watcher: a.watcher,
+	}
+
+	procError := rt.proc.delete(ctx, runtimeEnv)
+	buildError := rt.builder.delete(ctx, runtimeEnv)
+	return errors.Join(procError, buildError)
 }

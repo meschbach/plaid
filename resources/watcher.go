@@ -8,7 +8,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-type WatchToken int
+type WatchToken uint
 
 // ClientWatcher provides a client interface to a filterable change feed
 type ClientWatcher struct {
@@ -96,7 +96,9 @@ func (c *ClientWatcher) WatchResource(ctx context.Context, ref Meta, consume OnR
 	return err
 }
 
-func (c *ClientWatcher) OnResource(ctx context.Context, ref Meta, consume OnResourceChanged) (WatchToken, error) {
+func (c *ClientWatcher) OnResource(parent context.Context, ref Meta, consume OnResourceChanged) (WatchToken, error) {
+	ctx, span := tracing.Start(parent, "ClientWatcher.OnResource", trace.WithAttributes(ref.AsTraceAttribute("ref")...))
+	defer span.End()
 	select {
 	case <-ctx.Done():
 		return 0, ctx.Err()
@@ -124,6 +126,19 @@ func (c *ClientWatcher) OnAll(ctx context.Context, consumer OnResourceChanged) (
 	return token, err
 }
 
+func (c *ClientWatcher) Serve(ctx context.Context) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case e := <-c.Feed:
+			if err := c.Digest(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 type watcherAddStatusChangedOp struct {
 	watchID int
 	which   Meta
@@ -144,8 +159,24 @@ func (w *watcherAddStatusChangedOp) perform(ctx context.Context, c *Controller) 
 }
 
 // OnResourceStatusChanged registers consumer for invocation when either a status update occurs or a deletion operation
-func (c *ClientWatcher) OnResourceStatusChanged(ctx context.Context, which Meta, consumer OnResourceChanged) (WatchToken, error) {
-	token, err := c.addFilter(&watcherMatchAll{}, consumer)
+func (c *ClientWatcher) OnResourceStatusChanged(parent context.Context, which Meta, consumer OnResourceChanged) (WatchToken, error) {
+	ctx, span := tracing.Start(parent, "ClientWatcher.OnResourceStatusChanged", trace.WithAttributes(which.AsTraceAttribute("which")...))
+	defer span.End()
+
+	filter := &watcherAnyOperation{
+		to: []watchFilter{
+			&watcherMatchResourceOperation{
+				which: which,
+				op:    StatusUpdated,
+			},
+			&watcherMatchResourceOperation{
+				which: which,
+				op:    DeletedEvent,
+			},
+		},
+	}
+
+	token, err := c.addFilter(filter, consumer)
 	if err != nil {
 		return 0, err
 	}
@@ -273,4 +304,17 @@ func (w *watcherMatchResourceOperation) matches(op ResourceChangedOperation, whi
 		return false
 	}
 	return w.op == op
+}
+
+type watcherAnyOperation struct {
+	to []watchFilter
+}
+
+func (w *watcherAnyOperation) matches(op ResourceChangedOperation, which Meta) bool {
+	for _, f := range w.to {
+		if f.matches(op, which) {
+			return true
+		}
+	}
+	return false
 }

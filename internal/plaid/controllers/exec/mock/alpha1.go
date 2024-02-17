@@ -49,3 +49,8 @@ func (a *alpha1Ops) updateProc(ctx context.Context, m *Proc) error {
 	}
 	return nil
 }
+
+func (a *alpha1Ops) Delete(ctx context.Context, which resources.Meta, rt *Proc) error {
+	//todo: nothing to do
+	return nil
+}

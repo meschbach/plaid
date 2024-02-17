@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/meschbach/plaid/resources"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // DependencyState will manage a single Dependency to monitor for readiness
@@ -17,17 +20,25 @@ func (d *DependencyState) Init(ref resources.Meta) {
 	d.ref = ref
 }
 
-func (d *DependencyState) Reconcile(ctx context.Context, env Env) (ready bool, err error) {
+func (d *DependencyState) Reconcile(parent context.Context, env Env) (ready bool, err error) {
+	ctx, span := tracer.Start(parent, "DependencyState.Reconcile", trace.WithAttributes(attribute.Stringer("ref", d.ref)))
+	defer span.End()
+
 	step, err := d.decideNextStep(ctx, env)
 	if err != nil {
+		span.SetStatus(codes.Error, "failed to decide on next step")
+		span.RecordError(err)
 		return false, err
 	}
 	switch step {
 	case nextStepReady:
+		span.AddEvent("dependency-ready")
 		return true, nil
 	case nextStepWait:
+		span.AddEvent("dependency-wait")
 		return false, nil
 	case nextStepWatch:
+		span.AddEvent("dependency-watch")
 		problem := d.watch(ctx, env)
 		return false, problem
 	default:

@@ -6,6 +6,7 @@ type inputOpCode uint8
 
 const (
 	addWatch inputOpCode = iota
+	removeWatch
 )
 
 type inputOp struct {
@@ -28,10 +29,10 @@ func (c *Core) Watch2(ctx context.Context, point WatchConfig) error {
 		watch: point,
 		op:    addWatch,
 	}:
+		return nil
 	case <-ctx.Done():
+		return ctx.Err()
 	}
-
-	return nil
 }
 
 func (c *Core) Watch(ctx context.Context, path string) error {
@@ -39,4 +40,18 @@ func (c *Core) Watch(ctx context.Context, path string) error {
 		Path:          path,
 		ExcludeSuffix: nil,
 	})
+}
+
+func (c *Core) Unwatch(ctx context.Context, path string) error {
+	select {
+	case c.input <- inputOp{
+		watch: WatchConfig{
+			Path: path,
+		},
+		op: removeWatch,
+	}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }

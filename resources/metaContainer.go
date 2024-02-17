@@ -122,3 +122,20 @@ func (m *MetaContainer[T]) AllTypes() []Type {
 	}
 	return m.buckets.AllTypes()
 }
+
+// AllMetas will create an comprehensive list of all Meta names stored within the structure.  Result orders are
+// nondeterministic.
+func (m *MetaContainer[T]) AllMetas() []Meta {
+	var found []Meta
+	types := m.AllTypes()
+	for _, t := range types {
+		bucket, _ := m.buckets.Find(t)
+		for name, _ := range bucket.values {
+			found = append(found, Meta{
+				Type: t,
+				Name: name,
+			})
+		}
+	}
+	return found
+}

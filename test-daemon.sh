@@ -17,12 +17,11 @@ echo
 build_flags=""
 go build $build_flags -o tests/system/plaid-daemon ./cmd/daemon
 go build $build_flags -o tests/system/plaid-client ./cmd/client
-go build $build_flags -o tests/system/deps/services/service-a/service ./tests/system/deps/services/service-a/cmd
-go build $build_flags -o tests/system/deps/services/service-b/service ./tests/system/deps/services/service-b/cmd
 go build $build_flags -o tests/fsnwatch ./cmd/fsnwatch
 
 daemon=$PWD/tests/system/plaid-daemon
 client=$PWD/tests/system/plaid-client
+client_flags="--delete-on-completion"
 
 cd tests/system
 
@@ -46,7 +45,7 @@ echo "Simple"
 echo
 (
   export OTEL_SERVICE_NAME="plaid_simple"
-  cd simple && $client up  && echo "[test-harness] simple done"
+  cd simple && $client up $client_flags && echo "[test-harness] simple done"
 )
 
 # One shot test
@@ -56,7 +55,7 @@ echo
 (cd deps/one-shot
   export OTEL_SERVICE_NAME="plaid_one-shot"
   export PLAID_CONFIG=$PWD/plaid.json
-  (cd job-b && $client up && echo "[test-harness] one-shot dep test complete")
+  (cd job-b && $client up  $client_flags && echo "[test-harness] one-shot dep test complete")
 )
 
 echo
@@ -66,7 +65,7 @@ echo
 (cd deps/services
   export OTEL_SERVICE_NAME="plaid_services"
   export PLAID_CONFIG=$PWD/plaid.json
-  (cd service-b &&  $client up )
+  (cd client-b &&  $client up  $client_flags)
 )
 
 echo

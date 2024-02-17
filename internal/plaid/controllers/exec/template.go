@@ -11,15 +11,14 @@ type TemplateAlpha1Spec struct {
 	WorkingDir string `json:"wd"`
 }
 
-func (t TemplateAlpha1Spec) CreateResource(ctx context.Context, client *resources.Client, claimer resources.Meta, annotations map[string]string, watcher *resources.ClientWatcher, consumer resources.OnResourceChanged) (resources.Meta, resources.WatchToken, error) {
-	var token resources.WatchToken
+func (t TemplateAlpha1Spec) AsSpec(baseName string) (resources.Meta, InvocationAlphaV1Spec, error) {
 	var wd string
 	if t.WorkingDir != "" {
 		wd = t.WorkingDir
 	} else {
 		current, err := os.Getwd()
 		if err != nil {
-			return resources.Meta{}, token, err
+			return resources.Meta{}, InvocationAlphaV1Spec{}, err
 		}
 		wd = current
 	}
@@ -32,8 +31,20 @@ func (t TemplateAlpha1Spec) CreateResource(ctx context.Context, client *resource
 
 	//generate-id
 	id := resources.GenSuffix(8)
-	name := claimer.Name + "-" + id
+	name := baseName + "-" + id
 	instanceRef := resources.Meta{Type: InvocationAlphaV1Type, Name: name}
+
+	return instanceRef, result, nil
+}
+
+func (t TemplateAlpha1Spec) CreateResource(ctx context.Context, client *resources.Client, claimer resources.Meta, annotations map[string]string, watcher *resources.ClientWatcher, consumer resources.OnResourceChanged) (resources.Meta, resources.WatchToken, error) {
+	var token resources.WatchToken
+	instanceRef, result, err := t.AsSpec(claimer.Name)
+	if err != nil {
+		return resources.Meta{}, token, err
+	}
+
+	//generate-id
 	if watcher != nil {
 		var err error
 		token, err = watcher.OnResourceStatusChanged(ctx, instanceRef, consumer)

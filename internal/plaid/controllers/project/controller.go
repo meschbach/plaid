@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/meschbach/plaid/resources"
 	"github.com/meschbach/plaid/resources/operator"
+	"time"
 )
 
 type Controller struct {
@@ -31,6 +32,9 @@ func (c *Controller) Serve(ctx context.Context) error {
 		return err
 	}
 
+	rescanTimer := time.NewTicker(30 * time.Second)
+	defer rescanTimer.Stop()
+
 	for {
 		select {
 		case e := <-watcher.Feed:
@@ -39,6 +43,10 @@ func (c *Controller) Serve(ctx context.Context) error {
 			}
 		case e := <-av1Event:
 			if err := bridge.Dispatch(ctx, store, e); err != nil {
+				return err
+			}
+		case <-rescanTimer.C:
+			if err := bridge.Rescan(ctx); err != nil {
 				return err
 			}
 		case <-ctx.Done():

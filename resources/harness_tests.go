@@ -11,8 +11,9 @@ type TestSubsystem struct {
 	Controller *Controller
 	Store      *Client
 	SystemDone func()
-	Logger     chan<- string
-	treeRoot   *suture.Supervisor
+	//Logger is deprecated.  Originally used for logging output of controllers and resources.
+	Logger   chan<- string
+	treeRoot *suture.Supervisor
 }
 
 func (t *TestSubsystem) AttachController(name string, s suture.Service) {

@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/thejerf/suture/v4"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 	"golang.org/x/sys/unix"
 	"os"
 	"os/signal"
@@ -52,7 +53,7 @@ func listCommand(rt *client.Runtime) *cobra.Command {
 		Use:   "list <kind> <version>",
 		Short: "lists resources",
 		Args:  cobra.ExactArgs(2),
-		RunE: runCommand(rt, func(ctx context.Context, rt *client.Runtime, client *daemon.Daemon, args []string) error {
+		RunE: runCommand("list", rt, func(ctx context.Context, rt *client.Runtime, client *daemon.Daemon, args []string) error {
 			matching, err := client.Storage.List(ctx, resources.Type{
 				Kind:    args[0],
 				Version: args[1],
@@ -74,11 +75,12 @@ func upCommand(rt *client.Runtime) *cobra.Command {
 		Use:   "up",
 		Short: "launches a manifest and waits for it to be 'complete'",
 		Args:  cobra.ExactArgs(0),
-		RunE: runCommand(rt, func(ctx context.Context, rt *client.Runtime, client *daemon.Daemon, args []string) error {
+		RunE: runCommand("up", rt, func(ctx context.Context, rt *client.Runtime, client *daemon.Daemon, args []string) error {
 			return usecase.Up(ctx, client, rt, opt)
 		}),
 	}
 	cmd.Flags().BoolVarP(&opt.ReportUpdates, "report-progress", "p", false, "Reports status updates as they occur")
+	cmd.Flags().BoolVarP(&opt.DeleteOnCompletion, "delete-on-completion", "d", false, "Deletes project on completion")
 	return cmd
 }
 
@@ -88,7 +90,7 @@ func getCommand(rt *client.Runtime) *cobra.Command {
 		Use:   "get <kind> <version> <name>",
 		Short: "Retrieves a resource",
 		Args:  cobra.ExactArgs(3),
-		RunE: runCommand(rt, func(ctx context.Context, rt *client.Runtime, client *daemon.Daemon, args []string) error {
+		RunE: runCommand("get", rt, func(ctx context.Context, rt *client.Runtime, client *daemon.Daemon, args []string) error {
 			opts.Kind = args[0]
 			opts.Version = args[1]
 			opts.Resource = args[2]
@@ -100,7 +102,7 @@ func getCommand(rt *client.Runtime) *cobra.Command {
 	return cmd
 }
 
-func runCommand(rt *client.Runtime, fn func(ctx context.Context, rt *client.Runtime, d *daemon.Daemon, args []string) error) func(*cobra.Command, []string) error {
+func runCommand(op string, rt *client.Runtime, fn func(ctx context.Context, rt *client.Runtime, d *daemon.Daemon, args []string) error) func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		ctx, done := context.WithCancel(cmd.Context())
 		defer done()
@@ -121,6 +123,7 @@ func runCommand(rt *client.Runtime, fn func(ctx context.Context, rt *client.Runt
 
 		tree := suture.NewSimple("app")
 		app := &clientEnv{
+			op: op,
 			perform: func(ctx context.Context, rt *client.Runtime, client *daemon.Daemon) error {
 				return fn(ctx, rt, client, args)
 			},
@@ -140,6 +143,7 @@ func runCommand(rt *client.Runtime, fn func(ctx context.Context, rt *client.Runt
 
 type OnConnected func(ctx context.Context, rt *client.Runtime, daemon *daemon.Daemon) error
 type clientEnv struct {
+	op      string
 	pool    *suture.Supervisor
 	perform OnConnected
 	done    func()
@@ -147,7 +151,7 @@ type clientEnv struct {
 }
 
 func (c *clientEnv) Serve(serviceContext context.Context) error {
-	ctx, span := tracer.Start(serviceContext, "run")
+	ctx, span := tracer.Start(serviceContext, c.op)
 	defer span.End()
 	socketPath := ephemeral.ResolvePlaidSocketPath()
 
@@ -162,6 +166,8 @@ func (c *clientEnv) Serve(serviceContext context.Context) error {
 		if errors.Is(err, suture.ErrDoNotRestart) || errors.Is(err, suture.ErrTerminateSupervisorTree) {
 			//fall through for normal termination
 		} else {
+			span.SetStatus(codes.Error, "failed to perform requested operation")
+			span.RecordError(err)
 			return err
 		}
 	}

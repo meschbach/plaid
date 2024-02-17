@@ -54,6 +54,10 @@ func (c *Core) Serve(ctx context.Context) error {
 				}); err != nil {
 					return err
 				}
+			case removeWatch:
+				if err := watcher.Remove(op.watch.Path); err != nil {
+					return err
+				}
 			default:
 				return fmt.Errorf("unknown operation %d", op.op)
 			}

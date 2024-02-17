@@ -77,6 +77,7 @@ func (u *updateStatusOp) perform(serviceContext context.Context, c *Controller) 
 			problem: nil,
 			exists:  false,
 		})
+		return
 	}
 
 	changed := !bytes.Equal(node.status, u.status)

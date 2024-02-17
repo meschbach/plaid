@@ -1,6 +1,6 @@
 {
   "one-shot": true,
-  "name": "service-b",
+  "name": "client-b",
   "build": {
     "exec": "go build -o service ./cmd"
   },

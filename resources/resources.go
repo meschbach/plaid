@@ -32,6 +32,14 @@ func (m Meta) String() string {
 	return fmt.Sprintf("%s %s", m.Type, m.Name)
 }
 
+func (m Meta) AsTraceAttribute(prefix string) []attribute.KeyValue {
+	return []attribute.KeyValue{
+		attribute.String(prefix+".type.kind", m.Type.Kind),
+		attribute.String(prefix+".type.version", m.Type.Version),
+		attribute.String(prefix+".name", m.Name),
+	}
+}
+
 type ResourceChangedOperation uint8
 
 func (r ResourceChangedOperation) String() string {
@@ -67,8 +75,5 @@ func (r ResourceChanged) String() string {
 }
 
 func (r ResourceChanged) ToTraceAttributes() []attribute.KeyValue {
-	return []attribute.KeyValue{
-		attribute.Stringer("change.which", r.Which),
-		attribute.Stringer("change.operation", r.Operation),
-	}
+	return append(r.Which.AsTraceAttribute("change.which"), attribute.Stringer("change.operation", r.Operation))
 }

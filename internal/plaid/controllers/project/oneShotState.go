@@ -2,19 +2,12 @@ package project
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"github.com/meschbach/plaid/controllers/tooling"
 	"github.com/meschbach/plaid/internal/plaid/controllers/buildrun"
 	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
 	"github.com/meschbach/plaid/resources"
 )
-
-type resourceEnv struct {
-	which     resources.Meta
-	rpc       *resources.Client
-	watcher   *resources.ClientWatcher
-	reconcile func(ctx context.Context) error
-}
 
 type oneShotNext int
 
@@ -31,19 +24,17 @@ const (
 )
 
 type oneShotState struct {
-	created     bool
-	ref         resources.Meta
-	watchToken  resources.WatchToken
+	buildRun    tooling.Subresource[buildrun.AlphaStatus1]
 	finishState int
 }
 
 func (o *oneShotState) toStatus(status *Alpha1OneShotStatus) {
-	if !o.created {
+	if !o.buildRun.Created {
 		status.State = Alpha1StateProgressing
 		status.Ref = nil
 		status.Done = false
 	}
-	status.Ref = &o.ref
+	status.Ref = &o.buildRun.Ref
 	switch o.finishState {
 	case oneShotSuccess:
 		status.State = Alpha1StateSuccess
@@ -56,14 +47,17 @@ func (o *oneShotState) toStatus(status *Alpha1OneShotStatus) {
 	}
 }
 
-func (o *oneShotState) decideNextStep(ctx context.Context, resEnv *resourceEnv) (oneShotNext, error) {
-	if !o.created {
-		return oneShotCreate, nil
-	}
-
+func (o *oneShotState) decideNextStep(ctx context.Context, resEnv tooling.Env) (oneShotNext, error) {
 	var procState buildrun.AlphaStatus1
-	if exists, err := resEnv.rpc.GetStatus(ctx, o.ref, &procState); err != nil || !exists {
+	step, err := o.buildRun.Decide(ctx, resEnv, &procState)
+	if err != nil {
 		return oneShotWait, err
+	}
+	switch step {
+	case tooling.SubresourceCreate:
+		return oneShotCreate, nil
+	case tooling.SubresourceExists:
+		//fall through
 	}
 	if procState.Run.Result == nil || procState.Run.Result.Finished == nil {
 		return oneShotWait, nil
@@ -77,21 +71,13 @@ func (o *oneShotState) decideNextStep(ctx context.Context, resEnv *resourceEnv) 
 	return oneShotFinished, nil
 }
 
-func (o *oneShotState) create(ctx context.Context, resEnv *resourceEnv, spec Alpha1Spec, oneShotSpec Alpha1OneShotSpec) error {
-	which := resEnv.which
+func (o *oneShotState) create(ctx context.Context, resEnv tooling.Env, spec Alpha1Spec, oneShotSpec Alpha1OneShotSpec) error {
+	which := resEnv.Subject
 
 	ref := resources.Meta{
 		Type: buildrun.Alpha1,
 		Name: which.Name + oneShotSpec.Name + "-" + resources.GenSuffix(4),
 	}
-	token, err := resEnv.watcher.OnResourceStatusChanged(ctx, ref, func(ctx context.Context, changed resources.ResourceChanged) error {
-		switch changed.Operation {
-		case resources.StatusUpdated:
-			return resEnv.reconcile(ctx)
-		default:
-			return nil
-		}
-	})
 	buildSpec := buildrun.AlphaSpec1{
 		RestartToken: "", //todo: figure out restart tokens.
 		Build: exec.TemplateAlpha1Spec{
@@ -105,15 +91,9 @@ func (o *oneShotState) create(ctx context.Context, resEnv *resourceEnv, spec Alp
 	}
 	buildSpec.Requires = oneShotSpec.Requires
 
-	err = resEnv.rpc.Create(ctx, ref, buildSpec, resources.ClaimedBy(which))
+	return o.buildRun.Create(ctx, resEnv, ref, buildSpec)
+}
 
-	if err == nil {
-		o.created = true
-		o.ref = ref
-		o.watchToken = token
-		return nil
-	} else {
-		unwatch := resEnv.watcher.Off(ctx, token)
-		return errors.Join(err, unwatch)
-	}
+func (o *oneShotState) delete(ctx context.Context, resEnv tooling.Env) error {
+	return o.buildRun.Delete(ctx, resEnv)
 }

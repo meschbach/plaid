@@ -16,6 +16,7 @@ type alphaV1Ops struct {
 }
 
 func (a *alphaV1Ops) Create(ctx context.Context, which resources.Meta, spec exec.InvocationAlphaV1Spec, bridge *operator.KindBridgeState) (*proc, exec.InvocationAlphaV1Status, error) {
+	group := suture.NewSimple(which.String())
 	p := &proc{
 		cmd:             spec.Exec,
 		wd:              spec.WorkingDir,
@@ -23,12 +24,17 @@ func (a *alphaV1Ops) Create(ctx context.Context, which resources.Meta, spec exec
 		onChange:        bridge,
 		logging:         a.logging,
 		startingLink:    trace.SpanContextFromContext(ctx),
-		supervisionTree: a.supervisor,
+		supervisionTree: group,
 	}
-	a.supervisor.Add(p)
+	group.Add(p)
+	p.serviceToken = a.supervisor.Add(group)
 	return p, p.toAlphaV1Status(), nil
 }
 
 func (a *alphaV1Ops) Update(ctx context.Context, which resources.Meta, rt *proc, s exec.InvocationAlphaV1Spec) (exec.InvocationAlphaV1Status, error) {
 	return rt.toAlphaV1Status(), nil
+}
+
+func (a *alphaV1Ops) Delete(ctx context.Context, which resources.Meta, rt *proc) error {
+	return a.supervisor.Remove(rt.serviceToken)
 }

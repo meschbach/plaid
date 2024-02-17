@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/meschbach/go-junk-bucket/pkg/reactors"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -13,6 +14,7 @@ type Client struct {
 	boundary  reactors.Boundary[*Controller]
 }
 
+// Delete attempts to delete teh named resource, return true if the resource exists otherwise false.
 func (c *Client) Delete(ctx context.Context, what Meta) (bool, error) {
 	resultSignal := make(chan deleteResult, 1)
 	defer close(resultSignal)
@@ -91,7 +93,7 @@ func (c *Client) GetBytes(ctx context.Context, meta Meta) (body []byte, exists b
 }
 
 func (c *Client) GetStatus(parent context.Context, what Meta, out any) (bool, error) {
-	ctx, span := tracing.Start(parent, "GetStatus")
+	ctx, span := tracing.Start(parent, "GetStatus", trace.WithAttributes(attribute.Stringer("what", what)))
 	defer span.End()
 
 	bytes, exists, err := c.GetStatusBytes(ctx, what)
@@ -190,7 +192,7 @@ func (c *Client) Watcher(ctx context.Context) (*ClientWatcher, error) {
 			return nil, reply.problem
 		}
 		return &ClientWatcher{
-			nextID:     0,
+			nextID:     1,
 			res:        c,
 			watcherID:  reply.id,
 			Feed:       out,
@@ -202,7 +204,10 @@ func (c *Client) Watcher(ctx context.Context) (*ClientWatcher, error) {
 	}
 }
 
-func (c *Client) List(ctx context.Context, kind Type) ([]Meta, error) {
+func (c *Client) List(parent context.Context, kind Type) ([]Meta, error) {
+	ctx, span := tracing.Start(parent, "resources.List "+kind.String())
+	defer span.End()
+
 	resultSignal := make(chan Meta, 16)
 	select {
 	case c.dataPlane <- &listOp{
@@ -217,6 +222,7 @@ func (c *Client) List(ctx context.Context, kind Type) ([]Meta, error) {
 		select {
 		case i, ok := <-resultSignal:
 			if !ok {
+				span.SetAttributes(attribute.Int("count", len(out)))
 				return out, nil
 			}
 			out = append(out, i)

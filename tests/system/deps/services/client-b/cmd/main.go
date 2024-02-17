@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	fmt.Printf("service-b started.\n")
+	fmt.Printf("client-b started.\n")
 	resp, err := http.Get("http://localhost:9123/ops/liveness")
 	if err != nil {
 		panic(err)
@@ -15,5 +15,5 @@ func main() {
 	if resp.StatusCode != 200 {
 		panic("wrong status code")
 	}
-	fmt.Printf("service-b done.\n")
+	fmt.Printf("client-b done.\n")
 }

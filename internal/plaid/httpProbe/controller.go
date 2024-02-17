@@ -75,12 +75,11 @@ func (a *alphaV1Interpreter) reconcile(ctx context.Context, p *alphaV1Probe, spe
 	status := AlphaV1Status{Ready: false}
 
 	if !spec.Enabled {
-		//a.logging <- fmt.Sprintf("[http-probe]\t%s:\tNot enabled.", p.self.Name)
 		return status, nil
 	}
 
 	if !p.scheduled {
-		a.scheduler.schedule(250*time.Millisecond, p.self, spec.Host, spec.Port, spec.Resource, func(ctx context.Context, result probeResult) error {
+		a.scheduler.schedule(1*time.Second, p.self, spec.Host, spec.Port, spec.Resource, func(ctx context.Context, result probeResult) error {
 			return a.probeUpdate(ctx, p, result)
 		})
 		p.scheduled = true
@@ -96,18 +95,7 @@ func (a *alphaV1Interpreter) probeUpdate(ctx context.Context, p *alphaV1Probe, r
 	}
 }
 
-func (a *alphaV1Interpreter) reconcileStatus(ctx context.Context, p *alphaV1Probe, spec AlphaV1Spec) error {
-	status, err := a.reconcile(ctx, p, spec)
-	if exists, err := a.resources.UpdateStatus(ctx, p.self, status); err != nil {
-		return err //double error, not sure what to do
-	} else if !exists {
-		//deleted?
-	}
-	return err
-}
-
 func (a *alphaV1Interpreter) Create(ctx context.Context, which resources.Meta, spec AlphaV1Spec, bridgeState *operator.KindBridgeState) (*alphaV1Probe, AlphaV1Status, error) {
-	//a.logging <- fmt.Sprintf("[http-probe]\t%s:\tCreating resource for %#v", which.Name, spec)
 	p := &alphaV1Probe{
 		self: which,
 	}
@@ -117,4 +105,8 @@ func (a *alphaV1Interpreter) Create(ctx context.Context, which resources.Meta, s
 
 func (a *alphaV1Interpreter) Update(ctx context.Context, which resources.Meta, rt *alphaV1Probe, s AlphaV1Spec) (AlphaV1Status, error) {
 	return a.reconcile(ctx, rt, s)
+}
+
+func (a *alphaV1Interpreter) Delete(ctx context.Context, which resources.Meta, rt *alphaV1Probe) error {
+	return a.scheduler.unschedule(which)
 }

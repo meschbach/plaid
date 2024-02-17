@@ -135,3 +135,12 @@ func (p *projectState) create(ctx context.Context, env stateEnv, spec Alpha1Spec
 	}
 	return err
 }
+
+func (p *projectState) delete(ctx context.Context, env stateEnv) error {
+	if !p.created {
+		return nil
+	}
+	watchError := env.watcher.Off(ctx, p.currentToken)
+	_, deleteError := env.rpc.Delete(ctx, p.current)
+	return errors.Join(watchError, deleteError)
+}

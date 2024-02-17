@@ -3,9 +3,11 @@ package project
 import (
 	"context"
 	"errors"
+	"github.com/meschbach/plaid/controllers/tooling"
 	"github.com/meschbach/plaid/resources"
 	"github.com/meschbach/plaid/resources/operator"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -30,17 +32,21 @@ func (a *alpha1Ops) Create(ctx context.Context, which resources.Meta, spec Alpha
 }
 
 func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *state, spec Alpha1Spec) (Alpha1Status, error) {
-	ctx, span := tracer.Start(parent, "project.Update", trace.WithAttributes(attribute.String("name", which.Name)))
+	ctx, span := tracer.Start(parent, "project.Update", trace.WithAttributes(
+		attribute.Stringer("name", which),
+		attribute.Int("spec.oneshots", len(spec.OneShots)),
+		attribute.Int("spec.daemons", len(spec.Daemons)),
+	))
 	defer span.End()
 
 	status := Alpha1Status{}
 
 	//for each one shot
-	env := &resourceEnv{
-		which:   which,
-		rpc:     a.client,
-		watcher: a.watcher,
-		reconcile: func(ctx context.Context) error {
+	env := tooling.Env{
+		Subject: which,
+		Storage: a.client,
+		Watcher: a.watcher,
+		Reconcile: func(ctx context.Context) error {
 			return rt.bridge.OnResourceChange(ctx, which)
 		},
 	}
@@ -49,7 +55,7 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 	incompleteOneShots := 0
 	failedOneShots := 0
 	for _, oneShotSpec := range spec.OneShots {
-		oneShotStatus := Alpha1OneShotStatus{
+		oneShotStatus := &Alpha1OneShotStatus{
 			Name: oneShotSpec.Name,
 			Done: false,
 		}
@@ -63,7 +69,7 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 		if next, err := subController.decideNextStep(ctx, env); err != nil {
 			oneShotErrors = append(oneShotErrors, err)
 		} else {
-			subController.toStatus(&oneShotStatus)
+			subController.toStatus(oneShotStatus)
 			switch next {
 			case oneShotWait:
 				incompleteOneShots++
@@ -73,7 +79,7 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 				if err != nil {
 					oneShotErrors = append(oneShotErrors, err)
 				}
-				subController.toStatus(&oneShotStatus)
+				subController.toStatus(oneShotStatus)
 			case oneShotFinished:
 				if subController.finishState == oneShotFailure {
 					failedOneShots++
@@ -81,8 +87,9 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 				oneShotStatus.Done = true
 			}
 		}
-		status.OneShots = append(status.OneShots, oneShotStatus)
+		status.OneShots = append(status.OneShots, *oneShotStatus)
 	}
+	span.SetAttributes(attribute.Int("one-shots.incomplete", incompleteOneShots))
 	status.Done = incompleteOneShots == 0 && len(spec.Daemons) == 0
 	if status.Done {
 		if failedOneShots > 0 {
@@ -106,24 +113,37 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 
 		daemonStatus := &Alpha1DaemonStatus{}
 		if next, err := subController.decideNextStep(ctx, env); err != nil {
+			span.SetStatus(codes.Error, "failure while determine daemon state")
+			span.RecordError(err)
 			daemonErrors = append(daemonErrors, err)
 		} else {
+			subController.toStatus(daemonSpec, daemonStatus)
 			switch next {
 			case daemonWait:
+				span.AddEvent("daemon-wait", trace.WithAttributes(attribute.Bool("daemon.ready", daemonStatus.Ready)))
+				if !subController.targetReady {
+					allDaemonsReady = false
+				}
 				//do nothing
 			case daemonCreate:
+				span.AddEvent("creating-daemon")
 				err := subController.create(ctx, env, spec, daemonSpec)
+				subController.toStatus(daemonSpec, daemonStatus)
 				if err != nil {
+					span.SetStatus(codes.Error, "failed to create daemon")
+					span.RecordError(err)
 					daemonErrors = append(daemonErrors, err)
+					continue
 				}
+				allDaemonsReady = false
 			case daemonFinished:
+				span.AddEvent("daemon-finished")
 				//todo: restart?
 			}
-			subController.toStatus(daemonSpec, daemonStatus)
-			allDaemonsReady = allDaemonsReady && daemonStatus.Ready
 			status.Daemons = append(status.Daemons, daemonStatus)
 		}
 	}
+	span.SetAttributes(attribute.Bool("daemons.ready", allDaemonsReady))
 
 	//todo: clean up tests and put this under test
 	status.Ready = incompleteOneShots == 0 && allDaemonsReady
@@ -131,10 +151,25 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 	return status, errors.Join(allErrors...)
 }
 
+func (a *alpha1Ops) Delete(ctx context.Context, which resources.Meta, rt *state) error {
+	env := tooling.Env{
+		Subject: which,
+		Storage: a.client,
+		Watcher: a.watcher,
+	}
+
+	var problems []error
+	for _, oneShot := range rt.oneShots {
+		problems = append(problems, oneShot.delete(ctx, env))
+	}
+	for _, daemon := range rt.daemons {
+		problems = append(problems, daemon.delete(ctx, env))
+	}
+	return errors.Join(problems...)
+}
+
 type state struct {
-	bridge *operator.KindBridgeState
-	//todo: watches used anywhere?
-	watches  map[resources.Meta]resources.WatchToken
+	bridge   *operator.KindBridgeState
 	oneShots map[string]*oneShotState
 	daemons  map[string]*daemonState
 }
