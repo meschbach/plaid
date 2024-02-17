@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/meschbach/plaid/resources"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type SubresourceNextStep uint8
@@ -69,7 +70,16 @@ func (c *Subresource[Status]) cleanupWatcher(ctx context.Context, env Env) error
 }
 
 func (c *Subresource[Status]) Create(ctx context.Context, env Env, ref resources.Meta, spec any, opts ...resources.CreateOpt) error {
-	token, err := env.Watcher.OnResourceStatusChanged(ctx, ref, func(ctx context.Context, changed resources.ResourceChanged) error {
+	if err := c.cleanupWatcher(ctx, env); err != nil {
+		return err
+	}
+
+	token, err := env.Watcher.OnResourceStatusChanged(ctx, ref, func(parent context.Context, changed resources.ResourceChanged) error {
+		ctx, span := tracer.Start(parent, "Subresource["+env.Subject.Type.Kind+"]."+ref.Type.Kind+".onChange", trace.WithAttributes(
+			append(env.Subject.AsTraceAttribute("claimer"),
+				ref.AsTraceAttribute("watched")...)...,
+		))
+		defer span.End()
 		return env.Reconcile(ctx)
 	})
 	if err != nil {
