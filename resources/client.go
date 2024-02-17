@@ -192,7 +192,7 @@ func (c *Client) Watcher(ctx context.Context) (*ClientWatcher, error) {
 			return nil, reply.problem
 		}
 		return &ClientWatcher{
-			nextID:     0,
+			nextID:     1,
 			res:        c,
 			watcherID:  reply.id,
 			Feed:       out,

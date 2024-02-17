@@ -85,6 +85,25 @@ func TestWatcherSubsystem(t *testing.T) {
 				assert.Less(t, beforeCount, consumedCount, "Then the consumer is notified")
 			})
 
+			t.Run("And another resource of the same type is created", func(t *testing.T) {
+				beforeCount := consumedCount
+				otherResource := FakeMetaOf(watchingRef.Type)
+				require.NoError(t, client.Create(ctx, otherResource, ExampleResource{Enabled: true}))
+				require.NoError(t, digestAllPending(ctx, w))
+
+				assert.Equal(t, beforeCount, consumedCount, "Then the consumer is not notified")
+
+				t.Run("And the other resource status is updated", func(t *testing.T) {
+					beforeCount := consumedCount
+					exists, err := client.UpdateStatus(ctx, otherResource, ExampleResource{Enabled: false})
+					require.NoError(t, err)
+					require.True(t, exists)
+					require.NoError(t, digestAllPending(ctx, w))
+
+					assert.Equal(t, beforeCount, consumedCount, "Then the consumer is not notified")
+				})
+			})
+
 			t.Run("And the resource is deleted", func(t *testing.T) {
 				beforeCount := consumedCount
 				exists, err := client.Delete(ctx, watchingRef)
