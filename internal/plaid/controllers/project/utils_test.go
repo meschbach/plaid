@@ -2,48 +2,27 @@ package project
 
 import (
 	"context"
-	"errors"
 	"github.com/meschbach/plaid/internal/plaid/controllers/buildrun"
 	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
 	"github.com/meschbach/plaid/resources"
+	"github.com/meschbach/plaid/resources/optest"
+	"testing"
 	"time"
 )
 
-type BuildRunStatusMock struct {
-	Ref    *resources.Meta
-	Store  *resources.Client
-	status buildrun.AlphaStatus1
-}
-
-func (m *BuildRunStatusMock) FinishNow(ctx context.Context, exitCode int) error {
-	m.status.Ready = true
+func MustFinishBuildRunRun(t *testing.T, ctx context.Context, store *resources.Client, buildRunRef resources.Meta, exitCode int) {
+	ready := exitCode >= 0
 	now := time.Now()
-	m.status.Build.Result = &exec.InvocationAlphaV1Status{
-		Started:    &now,
-		Finished:   &now,
-		ExitStatus: &exitCode,
-		Healthy:    true,
+	status := buildrun.AlphaStatus1{
+		Run: buildrun.Alpha1StatusRun{
+			Result: &exec.InvocationAlphaV1Status{
+				Started:    &now,
+				Finished:   &now,
+				ExitStatus: &exitCode,
+				Healthy:    true,
+			},
+		},
+		Ready: ready,
 	}
-	m.status.Run.Result = &exec.InvocationAlphaV1Status{
-		Started:    &now,
-		Finished:   &now,
-		ExitStatus: &exitCode,
-		Healthy:    true,
-	}
-	m.status.Ready = true
-	return m.update(ctx)
-}
-
-func (m *BuildRunStatusMock) update(ctx context.Context) error {
-	if m.Ref == nil {
-		return errors.New("Ref is nil")
-	}
-	exists, err := m.Store.UpdateStatus(ctx, *m.Ref, m.status)
-	if err != nil {
-		return err
-	}
-	if !exists {
-		return errors.New("does not exist")
-	}
-	return nil
+	optest.MustUpdateStatusRaw(t, ctx, store, buildRunRef, status)
 }

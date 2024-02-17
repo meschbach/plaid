@@ -55,7 +55,7 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 	incompleteOneShots := 0
 	failedOneShots := 0
 	for _, oneShotSpec := range spec.OneShots {
-		oneShotStatus := Alpha1OneShotStatus{
+		oneShotStatus := &Alpha1OneShotStatus{
 			Name: oneShotSpec.Name,
 			Done: false,
 		}
@@ -69,7 +69,7 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 		if next, err := subController.decideNextStep(ctx, env); err != nil {
 			oneShotErrors = append(oneShotErrors, err)
 		} else {
-			subController.toStatus(&oneShotStatus)
+			subController.toStatus(oneShotStatus)
 			switch next {
 			case oneShotWait:
 				incompleteOneShots++
@@ -79,7 +79,7 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 				if err != nil {
 					oneShotErrors = append(oneShotErrors, err)
 				}
-				subController.toStatus(&oneShotStatus)
+				subController.toStatus(oneShotStatus)
 			case oneShotFinished:
 				if subController.finishState == oneShotFailure {
 					failedOneShots++
@@ -87,7 +87,7 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 				oneShotStatus.Done = true
 			}
 		}
-		status.OneShots = append(status.OneShots, oneShotStatus)
+		status.OneShots = append(status.OneShots, *oneShotStatus)
 	}
 	span.SetAttributes(attribute.Int("one-shots.incomplete", incompleteOneShots))
 	status.Done = incompleteOneShots == 0 && len(spec.Daemons) == 0
@@ -128,6 +128,7 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 			case daemonCreate:
 				span.AddEvent("creating-daemon")
 				err := subController.create(ctx, env, spec, daemonSpec)
+				subController.toStatus(daemonSpec, daemonStatus)
 				if err != nil {
 					span.SetStatus(codes.Error, "failed to create daemon")
 					span.RecordError(err)
