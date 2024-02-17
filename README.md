@@ -6,7 +6,9 @@ existing tools to concentrate on orchestration of services and systems.
 ## Examples
 
 * [simple](tests/system/simple) is a project to run a single command.  This is the simplest example.
-* [services](tests/system/deps/services) is an example of running a single command which is dependent upon another task.
+* [jobs with dependencies](tests/system/deps/one-shot) is a project which runs one command after another.
+* [services](tests/system/deps/services) is an example of running a single command which is dependent upon an HTTP
+service to come up be ready to service requests..
 
 # Releases
 * 0.2.0 - Stabilizing race conditions and exploring state management.
@@ -33,10 +35,6 @@ This is really just a list of features which I would like to implement at some p
 * Multi-phase delete - When deleting the resources should translate into deleting then deleted.
 * Service Discovery && Connection - Able to describe to services how to connect to peers on the network and perhaps in the data storage arena.
   * Activation - Services are booted and activated upon need.  As a second phase activation based on versioned requirements.
-
-## Optimizations
-* `resources.ClientWatcher` does not propagate filters into the `resource.Controller` reactor, meaning all events are
-dispatched to all `ClientWatcher`s which exist within the system.  Obviously does not scale but is functional for now.
 
 ## Refactoring
 * `resources/client.go` contains a lot of concerns.  These should probably be broken out into the correct operations
