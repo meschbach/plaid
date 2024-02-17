@@ -15,12 +15,13 @@ type probeResult struct {
 }
 
 type probe struct {
-	id       resources.Meta
-	period   *time.Ticker
-	host     string
-	port     uint16
-	resource string
-	notify   chan probeResult
+	id        resources.Meta
+	period    *time.Ticker
+	host      string
+	port      uint16
+	resource  string
+	notify    chan probeResult
+	lastState bool
 }
 
 func (p *probe) Serve(ctx context.Context) error {
@@ -62,10 +63,14 @@ func (p *probe) probe(ctx context.Context) error {
 		return nil
 	}
 	success := 200 <= resp.StatusCode && resp.StatusCode < 300
-	p.notify <- probeResult{
-		id:      p.id,
-		success: success,
-		problem: nil,
+	//only notify of change when it occurs
+	if p.lastState != success {
+		p.lastState = success
+		p.notify <- probeResult{
+			id:      p.id,
+			success: success,
+			problem: nil,
+		}
 	}
 	return nil
 }
