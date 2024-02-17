@@ -115,7 +115,7 @@ func (p *proc) Serve(parent context.Context) error {
 			return ctx.Err()
 		case err := <-done:
 			return func() error {
-				doneCtx, span := tracer.Start(ctx, "proc.Finish")
+				doneCtx, span := tracer.Start(ctx, "proc.Finish", trace.WithAttributes(p.which.AsTraceAttribute("which")...))
 				defer span.End()
 				hasTerminated = true
 
