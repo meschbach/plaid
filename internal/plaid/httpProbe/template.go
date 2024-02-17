@@ -3,6 +3,7 @@ package httpProbe
 import (
 	"context"
 	"fmt"
+	"github.com/meschbach/plaid/controllers/tooling"
 	"github.com/meschbach/plaid/resources"
 )
 
@@ -12,51 +13,51 @@ type TemplateAlpha1 struct {
 }
 
 func (t *TemplateAlpha1) Instantiate(ctx context.Context, storage *resources.Client, claimedBy resources.Meta, watch *resources.ClientWatcher, onChange func(ctx context.Context) error) (*TemplateState, error) {
-	ref := resources.Meta{
-		Type: AlphaV1Type,
-		Name: fmt.Sprintf("%s-port-%d", claimedBy.Name, t.Port),
+	state := &TemplateState{
+		env: tooling.Env{
+			Subject:   claimedBy,
+			Storage:   storage,
+			Watcher:   watch,
+			Reconcile: onChange,
+		},
+		spec:  t,
+		probe: tooling.Subresource[AlphaV1Status]{},
+		ready: false,
 	}
-	if err := storage.Create(ctx, ref, AlphaV1Spec{
-		Enabled:  true,
-		Host:     "localhost",
-		Port:     t.Port,
-		Resource: t.Path,
-	}, resources.ClaimedBy(claimedBy)); err != nil {
-		return nil, err
-	}
-
-	state := &TemplateState{ref: ref, ready: false}
-	token, err := watch.OnResource(ctx, ref, func(ctx context.Context, changed resources.ResourceChanged) error {
-		switch changed.Operation {
-		case resources.StatusUpdated:
-			return onChange(ctx)
-		default:
-		}
-		return nil
-	})
-	if err != nil { //todo: dispose of resource
-		return nil, err
-	}
-	state.token = token
-	return state, nil
+	return state, state.Reconcile(ctx, nil)
 }
 
 type TemplateState struct {
-	ref   resources.Meta
-	token resources.WatchToken
+	env   tooling.Env
+	spec  *TemplateAlpha1
+	probe tooling.Subresource[AlphaV1Status]
 	ready bool
 }
 
 func (t *TemplateState) Reconcile(ctx context.Context, storage *resources.Client) error {
 	var status AlphaV1Status
-	exists, err := storage.GetStatus(ctx, t.ref, &status)
-	if !exists || err != nil {
-		t.ready = false
+	resourceStep, err := t.probe.Decide(ctx, t.env, &status)
+	if err != nil {
 		return err
 	}
-	if t.ready != status.Ready {
+	switch resourceStep {
+	case tooling.SubresourceCreate:
+		ref := resources.Meta{
+			Type: AlphaV1Type,
+			Name: fmt.Sprintf("%s-port-%d", t.env.Subject.Name, t.spec.Port),
+		}
+		spec := AlphaV1Spec{
+			Enabled:  true,
+			Host:     "localhost",
+			Port:     t.spec.Port,
+			Resource: t.spec.Path,
+		}
+		if err := t.probe.Create(ctx, t.env, ref, spec, resources.ClaimedBy(t.env.Subject)); err != nil {
+			return err
+		}
+		return nil
+	case tooling.SubresourceExists:
 		t.ready = status.Ready
-		//todo: dispatch an update event
 	}
 	return nil
 }

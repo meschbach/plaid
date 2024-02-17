@@ -17,6 +17,7 @@ type TemplateAlpha1Spec struct {
 	Http *httpProbe.TemplateAlpha1 `json:"http,omitempty"`
 }
 
+// todo: revisit and move env to tooling.Env
 func (t *TemplateAlpha1Spec) Instantiate(ctx context.Context, env TemplateEnv) (TemplateAlpha1State, error) {
 	if t == nil {
 		return &alwaysReady{}, nil
