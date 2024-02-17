@@ -34,10 +34,6 @@ This is really just a list of features which I would like to implement at some p
 * Service Discovery && Connection - Able to describe to services how to connect to peers on the network and perhaps in the data storage arena.
   * Activation - Services are booted and activated upon need.  As a second phase activation based on versioned requirements.
 
-## Optimizations
-* `resources.ClientWatcher` does not propagate filters into the `resource.Controller` reactor, meaning all events are
-dispatched to all `ClientWatcher`s which exist within the system.  Obviously does not scale but is functional for now.
-
 ## Refactoring
 * `resources/client.go` contains a lot of concerns.  These should probably be broken out into the correct operations
 file.
