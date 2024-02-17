@@ -2,9 +2,9 @@ package service
 
 import (
 	"context"
-	"github.com/meschbach/plaid/internal/junk"
 	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
 	"github.com/meschbach/plaid/resources"
+	"github.com/meschbach/plaid/resources/optest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -15,17 +15,14 @@ func TestServiceWithBuilderStep(t *testing.T) {
 	ctx, done := context.WithCancel(context.Background())
 	t.Cleanup(done)
 
-	core := resources.WithTestSubsystem(t, ctx)
+	ctx, plaid := optest.New(t)
+	core := plaid.Legacy
 	core.AttachController("controller.service", NewSystem(core.Controller))
 	store := core.Store
-	watcher, err := store.Watcher(ctx)
-	core.AttachController("test.watcher", watcher)
-	require.NoError(t, err)
 
 	t.Run("Given a new service with a build step and no dependencies", func(t *testing.T) {
 		serviceRef := resources.FakeMetaOf(Alpha1)
-		subject, err := Observe(ctx, watcher, serviceRef)
-		require.NoError(t, err)
+		subject := plaid.Observe(ctx, serviceRef)
 
 		buildSpec := exec.TemplateAlpha1Spec{
 			Command:    "build-step",
@@ -40,9 +37,9 @@ func TestServiceWithBuilderStep(t *testing.T) {
 		require.NoError(t, store.Create(ctx, serviceRef, spec))
 
 		t.Run("When the service is created created", func(t *testing.T) {
-			statusCreateChange.Wait()
-			status := MustGetStatus[Alpha1Status](t, ctx, store, serviceRef)
-			assert.Equal(t, "create", status.Build.State, "then the builder must be created")
+			statusCreateChange.Wait(ctx)
+			status := optest.MustGetStatus[Alpha1Status](plaid, serviceRef)
+			assert.Equal(t, "starting", status.Build.State, "then the builder must be created")
 			require.NotNil(t, status.Build.Ref, "then the build must select the reference")
 
 			assertRunNotReady(t, status)
@@ -50,30 +47,40 @@ func TestServiceWithBuilderStep(t *testing.T) {
 			builderRef := *status.Build.Ref
 			startTime := time.Now()
 			t.Run("And the build is started", func(t *testing.T) {
-				MustUpdateStatusAndWait(t, ctx, store, subject.Status, builderRef, exec.InvocationAlphaV1Status{
+				started := subject.Status.Fork()
+				optest.MustUpdateStatusAndWait(plaid, subject.Status, builderRef, exec.InvocationAlphaV1Status{
 					Started: &startTime,
 				})
 
-				status := MustGetStatus[Alpha1Status](t, ctx, store, serviceRef)
+				started.WaitFor(ctx, func(ctx context.Context) bool {
+					status := optest.MustGetStatus[Alpha1Status](plaid, serviceRef)
+					return status.Build.State == "running"
+				})
+				status := optest.MustGetStatus[Alpha1Status](plaid, serviceRef)
 				assert.Equal(t, builderRef, *status.Build.Ref, "ref must be maintained")
-				assert.Equal(t, "running", status.Build.State, "then the state must be starting")
+				assert.Equal(t, "running", status.Build.State, "then the state must be running")
 
 				assertRunNotReady(t, status)
 			})
 
 			finishedTime := time.Now()
 			t.Run("And the build completes successfully", func(t *testing.T) {
+				finished := subject.Status.Fork()
 				exitStatus := 0
-				MustUpdateStatusAndWait(t, ctx, store, subject.Status, builderRef, exec.InvocationAlphaV1Status{
+				optest.MustUpdateStatusAndWait(plaid, subject.Status, builderRef, exec.InvocationAlphaV1Status{
 					Started:    &startTime,
 					Finished:   &finishedTime,
 					ExitStatus: &exitStatus,
 					Healthy:    true,
 				})
 
-				status := MustGetStatus[Alpha1Status](t, ctx, store, serviceRef)
+				finished.WaitFor(ctx, func(ctx context.Context) bool {
+					status := optest.MustGetStatus[Alpha1Status](plaid, serviceRef)
+					return status.Build.State == "finished"
+				})
+				status := optest.MustGetStatus[Alpha1Status](plaid, serviceRef)
 				assert.Equal(t, builderRef, *status.Build.Ref, "ref must be maintained")
-				assert.Equal(t, "finished", status.Build.State, "then the state must be starting")
+				assert.Equal(t, "finished", status.Build.State, "then the state must be finished")
 
 				t.Run("Then the service should be started", func(t *testing.T) {
 					assert.NotEqual(t, StateNotReady, status.Run.State, "then the service should be creating")
@@ -82,23 +89,6 @@ func TestServiceWithBuilderStep(t *testing.T) {
 			})
 		})
 	})
-}
-
-func MustUpdateStatusAndWait(t *testing.T, ctx context.Context, store *resources.Client, gate *junk.ChangeTracker, ref resources.Meta, status any) {
-	postUpdate := gate.Fork()
-	exists, err := store.UpdateStatus(ctx, ref, status)
-	require.NoError(t, err, "update must not error")
-	require.True(t, exists, "build must exist")
-
-	postUpdate.Wait()
-}
-
-func MustGetStatus[Status any](t *testing.T, ctx context.Context, store *resources.Client, ref resources.Meta) Status {
-	var out Status
-	exists, err := store.GetStatus(ctx, ref, &out)
-	require.NoError(t, err, "failed to retrieve status of %s", ref)
-	require.True(t, exists, "resource %s was expected to exist and status retrieval but was not", ref)
-	return out
 }
 
 func assertRunNotReady(t *testing.T, status Alpha1Status) {

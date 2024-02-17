@@ -10,6 +10,9 @@ import (
 	"github.com/meschbach/plaid/resources"
 	"github.com/meschbach/plaid/resources/operator"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+	"sort"
+	"strings"
 )
 
 var Alpha1 = resources.Type{
@@ -58,7 +61,9 @@ type alpha1Ops struct {
 }
 
 func (a *alpha1Ops) Create(ctx context.Context, which resources.Meta, spec Alpha1Spec, bridge *operator.KindBridgeState) (*serviceState, Alpha1Status, error) {
+	token := resources.GenSuffix(4)
 	rt := &serviceState{
+		token:        token,
 		bridge:       bridge,
 		dependencies: &dependencies.State{},
 	}
@@ -76,7 +81,7 @@ func (a *alpha1Ops) Create(ctx context.Context, which resources.Meta, spec Alpha
 }
 
 func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *serviceState, s Alpha1Spec) (Alpha1Status, error) {
-	ctx, span := tracer.Start(parent, "service.alpha1/Update")
+	ctx, span := tracer.Start(parent, "service.alpha1/Update", trace.WithAttributes(which.AsTraceAttribute("which")...))
 	defer span.End()
 
 	env := tooling.Env{
@@ -104,6 +109,13 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *ser
 			Ready:      s.Ready,
 		})
 	}
+	//todo: figure out how to test stable output
+	sort.SliceStable(status.Dependencies, func(i, j int) bool {
+		lhs := status.Dependencies[i]
+		rhs := status.Dependencies[j]
+		return strings.Compare(lhs.Dependency.Name, rhs.Dependency.Name) > 0
+	})
+
 	if err != nil {
 		span.SetStatus(codes.Error, "dependency reconciliation error")
 		span.RecordError(err)

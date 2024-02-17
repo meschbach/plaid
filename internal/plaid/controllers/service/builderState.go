@@ -45,7 +45,7 @@ func (b *builderState) decideNextStep(ctx context.Context, env tooling.Env) (bui
 	}
 	switch subresourceStep {
 	case tooling.SubresourceCreate:
-		status.State = "create"
+		status.State = "starting"
 		return builderNextCreate, status, err
 	case tooling.SubresourceExists:
 		step := builderNextWait
@@ -74,6 +74,7 @@ func (b *builderState) create(ctx context.Context, env tooling.Env, templateSpec
 	if err := b.buildExec.Create(ctx, env, ref, spec); err != nil {
 		return err
 	}
+	status.State = "starting"
 	status.Ref = &ref
 	return nil
 }

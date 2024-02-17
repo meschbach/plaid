@@ -8,6 +8,7 @@ import (
 type serviceState struct {
 	bridge *operator.KindBridgeState
 
+	token        string
 	dependencies *dependencies.State
 	build        builderState
 	run          runState

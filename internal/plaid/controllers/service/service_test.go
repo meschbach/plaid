@@ -2,31 +2,25 @@ package service
 
 import (
 	"context"
-	"github.com/meschbach/plaid/internal/junk"
 	"github.com/meschbach/plaid/internal/plaid/controllers/dependencies"
 	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
 	"github.com/meschbach/plaid/resources"
+	"github.com/meschbach/plaid/resources/optest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 )
 
-func TestService(t *testing.T) {
-	ctx, done := context.WithCancel(context.Background())
-	t.Cleanup(done)
-
-	core := resources.WithTestSubsystem(t, ctx)
+func TestServiceWithNoDependencies(t *testing.T) {
+	ctx, plaid := optest.New(t)
+	core := plaid.Legacy
 	core.AttachController("controller.service", NewSystem(core.Controller))
 	store := core.Store
-	watcher, err := store.Watcher(ctx)
-	core.AttachController("test.watcher", watcher)
-	require.NoError(t, err)
 
 	t.Run("Given an new Service with no build or dependencies", func(t *testing.T) {
 		serviceRef := resources.FakeMetaOf(Alpha1)
-		subject, err := Observe(ctx, watcher, serviceRef)
-		require.NoError(t, err)
+		subject := plaid.Observe(ctx, serviceRef)
 		serviceStatusUpdate := subject.Status
 
 		spec := Alpha1Spec{
@@ -40,8 +34,8 @@ func TestService(t *testing.T) {
 		require.NoError(t, store.Create(ctx, serviceRef, spec))
 
 		t.Run("Then a new command should be created", func(t *testing.T) {
-			createStatusChange.Wait()
-			status := MustGetStatus[Alpha1Status](t, ctx, store, serviceRef)
+			createStatusChange.Wait(ctx)
+			status := optest.MustGetStatus[Alpha1Status](plaid, serviceRef)
 			assert.False(t, status.Ready, "must not be ready %#v", status)
 			assert.Equal(t, Running, status.Run.State, "must be in a running state")
 			assert.NotNil(t, status.Run.Ref, "must reference a run")
@@ -49,23 +43,33 @@ func TestService(t *testing.T) {
 			t.Run("When the process has started", func(t *testing.T) {
 				runRef := *status.Run.Ref
 				now := time.Now()
-				MustUpdateStatusAndWait(t, ctx, store, serviceStatusUpdate, runRef, exec.InvocationAlphaV1Status{
+				invocationFinished := serviceStatusUpdate.Fork()
+				optest.MustUpdateStatusAndWait(plaid, serviceStatusUpdate, runRef, exec.InvocationAlphaV1Status{
 					Started: &now,
 					Healthy: true,
 				})
 
-				status := MustGetStatus[Alpha1Status](t, ctx, store, serviceRef)
+				invocationFinished.WaitFor(ctx, func(ctx context.Context) bool {
+					status := optest.MustGetStatus[Alpha1Status](plaid, serviceRef)
+					return status.Ready
+				})
+				status := optest.MustGetStatus[Alpha1Status](plaid, serviceRef)
 				assert.True(t, status.Ready, "should be ready now %#v", status)
 				assert.Equal(t, Running, status.Run.State, "must be in a running state")
 				assert.NotNil(t, status.Run.Ref, "must reference a run")
 			})
 		})
 	})
+}
 
+func TestServiceWithDependencies(t *testing.T) {
+	ctx, plaid := optest.New(t)
+	core := plaid.Legacy
+	core.AttachController("controller.service", NewSystem(core.Controller))
+	store := core.Store
 	t.Run("Given a new service with a dependency", func(t *testing.T) {
 		serviceRef := resources.FakeMetaOf(Alpha1)
-		subject, err := Observe(ctx, watcher, serviceRef)
-		require.NoError(t, err)
+		subject := plaid.Observe(ctx, serviceRef)
 		serviceStatusUpdate := subject.Status
 
 		spec := Alpha1Spec{
@@ -82,8 +86,8 @@ func TestService(t *testing.T) {
 		require.NoError(t, store.Create(ctx, serviceRef, spec))
 
 		t.Run("When the dependency does not exist", func(t *testing.T) {
-			createStatusChange.Wait()
-			status := MustGetStatus[Alpha1Status](t, ctx, store, serviceRef)
+			createStatusChange.Wait(ctx)
+			status := optest.MustGetStatus[Alpha1Status](plaid, serviceRef)
 			assert.False(t, status.Ready, "must not be ready %#v", status)
 			if assert.Len(t, status.Dependencies, 1) {
 				assert.False(t, status.Dependencies[0].Ready)
@@ -95,14 +99,14 @@ func TestService(t *testing.T) {
 			t.Run("And the dependency is created", func(t *testing.T) {
 				require.NoError(t, store.Create(ctx, spec.Dependencies[0], dependencies.ReadyAlpha1Status{Ready: false}))
 
-				status := MustGetStatus[Alpha1Status](t, ctx, store, serviceRef)
+				status := optest.MustGetStatus[Alpha1Status](plaid, serviceRef)
 				assert.Nil(t, status.Run.Ref, "run should not be created")
 			})
 
 			t.Run("And the dependency becomes ready", func(t *testing.T) {
-				MustUpdateStatusAndWait(t, ctx, store, subject.Status, spec.Dependencies[0], dependencies.ReadyAlpha1Status{Ready: true})
+				optest.MustUpdateStatusAndWait(plaid, subject.Status, spec.Dependencies[0], dependencies.ReadyAlpha1Status{Ready: true})
 
-				status := MustGetStatus[Alpha1Status](t, ctx, store, serviceRef)
+				status := optest.MustGetStatus[Alpha1Status](plaid, serviceRef)
 				if assert.Len(t, status.Dependencies, 1) {
 					assert.True(t, status.Dependencies[0].Ready, "dep must be ready")
 				}
@@ -111,26 +115,4 @@ func TestService(t *testing.T) {
 			})
 		})
 	})
-}
-
-type WatchedResource struct {
-	Changes *junk.ChangeTracker
-	Status  *junk.ChangeTracker
-}
-
-func Observe(ctx context.Context, watcher *resources.ClientWatcher, ref resources.Meta) (*WatchedResource, error) {
-	w := &WatchedResource{
-		Changes: junk.NewChangeTracker(),
-		Status:  junk.NewChangeTracker(),
-	}
-	_, err := watcher.OnResource(ctx, ref, func(ctx context.Context, changed resources.ResourceChanged) error {
-		w.Changes.Update()
-		switch changed.Operation {
-		case resources.StatusUpdated:
-			w.Status.Update()
-		default:
-		}
-		return nil
-	})
-	return w, err
 }
