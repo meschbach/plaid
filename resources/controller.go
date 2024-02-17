@@ -90,7 +90,6 @@ func (r *Controller) dispatchUpdates(parent context.Context, changed ResourceCha
 	link := trace.LinkFromContext(ctx)
 
 	for _, w := range r.allWatchers {
-		//todo: cull stale watchers
 		w.dispatch(ctx, changed, what, link)
 	}
 }
