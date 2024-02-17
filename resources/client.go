@@ -204,7 +204,10 @@ func (c *Client) Watcher(ctx context.Context) (*ClientWatcher, error) {
 	}
 }
 
-func (c *Client) List(ctx context.Context, kind Type) ([]Meta, error) {
+func (c *Client) List(parent context.Context, kind Type) ([]Meta, error) {
+	ctx, span := tracing.Start(parent, "resources.List "+kind.String())
+	defer span.End()
+
 	resultSignal := make(chan Meta, 16)
 	select {
 	case c.dataPlane <- &listOp{
@@ -219,6 +222,7 @@ func (c *Client) List(ctx context.Context, kind Type) ([]Meta, error) {
 		select {
 		case i, ok := <-resultSignal:
 			if !ok {
+				span.SetAttributes(attribute.Int("count", len(out)))
 				return out, nil
 			}
 			out = append(out, i)

@@ -2,7 +2,8 @@ package operator
 
 import (
 	"context"
-	"fmt"
+	"errors"
+	"github.com/meschbach/go-junk-bucket/pkg/fx"
 	"github.com/meschbach/plaid/resources"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -40,7 +41,7 @@ func NewKindBridge[Spec any, Status any, Runtime any](resourceType resources.Typ
 }
 
 func (k *KindBridge[P, T, R]) Setup(parentCtx context.Context, r *resources.Client) (chan resources.ResourceChanged, error) {
-	ctx, span := tracing.Start(parentCtx, "KindBridge.Setup "+k.kind.String())
+	ctx, span := tracing.Start(parentCtx, "KindBridge["+k.kind.String()+"].Setup")
 	defer span.End()
 
 	k.store = r
@@ -60,28 +61,64 @@ func (k *KindBridge[P, T, R]) Setup(parentCtx context.Context, r *resources.Clie
 	}
 
 	//find matching
-	matching, err := r.List(ctx, k.kind)
-	if err != nil {
+	rescanError := k.Rescan(ctx)
+	if rescanError != nil {
 		close(changes)
-		return nil, err
+	}
+	return changes, rescanError
+}
+
+// Rescan reviews the state of the store and attempts to synchronize the resources
+func (k *KindBridge[Spec, Status, R]) Rescan(parentCtx context.Context) error {
+	ctx, span := tracing.Start(parentCtx, "KindBridge["+k.kind.String()+"]#Rescan ")
+	defer span.End()
+	found, err := k.store.List(ctx, k.kind)
+	if err != nil {
+		return err
 	}
 
-	for _, existing := range matching {
-		if err := k.create(ctx, r, existing); err != nil {
-			close(changes)
-			return nil, err
+	deletedMetas := k.mapping.AllMetas()
+	var problems []error
+	for _, ref := range found {
+		_, hasState := k.mapping.Find(ref)
+		if hasState {
+			span.AddEvent("sync", trace.WithAttributes(ref.AsTraceAttribute("ref")...))
+			deletedMetas = fx.Filter(deletedMetas, func(e resources.Meta) bool {
+				return !ref.EqualsMeta(e)
+			})
+			if err := k.updated(ctx, k.store, ref); err != nil {
+				span.SetStatus(codes.Error, "update failed")
+				problems = append(problems, err)
+			}
+		} else {
+			span.AddEvent("create", trace.WithAttributes(ref.AsTraceAttribute("ref")...))
+			if err := k.create(ctx, k.store, ref); err != nil {
+				span.SetStatus(codes.Error, "create failed")
+				problems = append(problems, err)
+			}
 		}
 	}
 
-	// channel to be told of
-	return changes, nil
+	//delete all remaining
+	for _, ref := range deletedMetas {
+		span.AddEvent("delete missing", trace.WithAttributes(attribute.Stringer("resource", ref)))
+		if err := k.delete(ctx, k.store, ref); err != nil {
+			span.SetStatus(codes.Error, "delete failed")
+			problems = append(problems, err)
+		}
+	}
+	return errors.Join(problems...)
 }
 
 func (k *KindBridge[Spec, Status, R]) create(parentCtx context.Context, r *resources.Client, which resources.Meta) error {
-	ctx, span := tracing.Start(parentCtx, "KindBridge#create", trace.WithAttributes(attribute.Stringer("which", which)))
+	ctx, span := tracing.Start(parentCtx, "KindBridge["+which.Type.String()+"]#create", trace.WithAttributes(attribute.Stringer("which", which)))
 	defer span.End()
 
-	span.SetName("KindBridge#create " + which.Type.String())
+	//todo: figure out how we can get multiple create events for the same object
+	_, found := k.mapping.Find(which)
+	if found {
+		return k.updated(ctx, r, which)
+	}
 
 	var spec Spec
 	exists, err := r.Get(ctx, which, &spec)
@@ -95,11 +132,12 @@ func (k *KindBridge[Spec, Status, R]) create(parentCtx context.Context, r *resou
 	}
 
 	clientCallbacks := &KindBridgeState{
-		OnResourceChange: func(ctx context.Context, which resources.Meta) error {
+		OnResourceChange: func(parent context.Context, which resources.Meta) error {
 			if !which.Type.Equals(k.kind) {
 				panic("update on unmanaged type")
 			}
-			span.AddEvent("KindBridgeState#OnResourceChange", trace.WithAttributes(attribute.Stringer("which", which)))
+			ctx, span := tracing.Start(parent, "KindBridge["+k.kind.Kind+"].bridge.OnResourceChange", trace.WithAttributes(which.AsTraceAttribute("which")...))
+			defer span.End()
 			select {
 			case k.changeFeed <- resources.ResourceChanged{
 				Which:     which,
@@ -133,10 +171,8 @@ func (k *KindBridge[Spec, Status, R]) create(parentCtx context.Context, r *resou
 }
 
 func (k *KindBridge[Spec, Status, R]) updated(parentCtx context.Context, r *resources.Client, changed resources.Meta) error {
-	ctx, span := tracing.Start(parentCtx, "KindBridge#updated", trace.WithAttributes(attribute.Stringer("which", changed)))
+	ctx, span := tracing.Start(parentCtx, "KindBridge["+changed.Type.String()+"]#updated ", trace.WithAttributes(changed.AsTraceAttribute("which")...))
 	defer span.End()
-
-	span.SetName("KindBridge#updated " + changed.Type.String())
 
 	var s Spec
 	exists, err := r.Get(ctx, changed, &s)
@@ -159,7 +195,6 @@ func (k *KindBridge[Spec, Status, R]) updated(parentCtx context.Context, r *reso
 			return err
 		}
 		if !exists { //todo: ensure ignoring and waiting for deletion is appropriate
-			fmt.Println("resource went missing during update")
 			return nil
 		}
 		return nil
@@ -183,10 +218,8 @@ func (k *KindBridge[Spec, Status, R]) Dispatch(parent context.Context, r *resour
 }
 
 func (k *KindBridge[Spec, Status, R]) digestChange(parent context.Context, changed resources.ResourceChanged) error {
-	ctx, span := tracing.Start(parent, "KindBridge.")
+	ctx, span := tracing.Start(parent, "KindBridge["+k.kind.Kind+"]#digestChange")
 	defer span.End()
-
-	span.SetName("KindBridge." + changed.Operation.String())
 
 	switch changed.Operation {
 	case resources.CreatedEvent:
@@ -204,7 +237,8 @@ func (k *KindBridge[Spec, Status, R]) All() []*R {
 	return k.mapping.AllValues()
 }
 
-// ConsumeEvent will wait on an event to be processed or for the parent context to be cancelled
+// ConsumeEvent will wait on an event to be processed or for the parent context to be cancelled.  Generally useful in
+// testing code when one knows there are specific events to be processed.
 func (k *KindBridge[Spec, Status, R]) ConsumeEvent(parentContext context.Context) error {
 	select {
 	case <-parentContext.Done():
