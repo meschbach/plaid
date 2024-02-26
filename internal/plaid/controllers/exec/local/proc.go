@@ -68,44 +68,8 @@ func (p *proc) Serve(parent context.Context) error {
 		}
 	}()
 
-	if err := (func() error {
-		initCtx, span := tracer.Start(ctx, "proc.Init")
-		defer span.End()
-
-		p.supervisionTree.Add(&logRelay{
-			config:     p.logging,
-			from:       stdout,
-			logBuffer:  procStdout,
-			ref:        p.which,
-			streamName: "stdout",
-			fromSpan:   trace.SpanContextFromContext(initCtx),
-		})
-		p.supervisionTree.Add(&logRelay{
-			config:     p.logging,
-			from:       stderr,
-			logBuffer:  procStderr,
-			ref:        p.which,
-			streamName: "stderr",
-			fromSpan:   trace.SpanContextFromContext(initCtx),
-		})
-
-		func() {
-			p.control.Lock()
-			defer p.control.Unlock()
-			now := time.Now()
-			p.started = &now
-		}()
-		if err := p.onChange.OnResourceChange(initCtx, p.which); err != nil {
-			span.SetStatus(codes.Error, "failed to set start")
-			return &labeledError{doing: "starting update", underlying: err}
-		}
-
-		go func() {
-			err := cmd.Run(stdout, stderr)
-			done <- err
-		}()
-		return nil
-	})(); err != nil {
+	if err := p.startProcess(ctx, cmd, stdout, procStdout, stderr, procStderr, done); err != nil {
+		span.SetStatus(codes.Error, "failed to start")
 		return err
 	}
 
@@ -153,6 +117,47 @@ func (p *proc) Serve(parent context.Context) error {
 			}()
 		}
 	}
+}
+
+func (p *proc) startProcess(parent context.Context, cmd *sub.Subcommand, stdout chan string, procStdout *streams.Buffer[logdrain.LogEntry], stderr chan string, procStderr *streams.Buffer[logdrain.LogEntry], done chan error) error {
+	initCtx, span := tracer.Start(parent, "proc.Init")
+	defer span.End()
+
+	p.supervisionTree.Add(&logRelay{
+		config:     p.logging,
+		from:       stdout,
+		logBuffer:  procStdout,
+		ref:        p.which,
+		streamName: "stdout",
+		fromSpan:   trace.SpanContextFromContext(initCtx),
+	})
+	p.supervisionTree.Add(&logRelay{
+		config:     p.logging,
+		from:       stderr,
+		logBuffer:  procStderr,
+		ref:        p.which,
+		streamName: "stderr",
+		fromSpan:   trace.SpanContextFromContext(initCtx),
+	})
+
+	p.noteStartTime()
+	if err := p.onChange.OnResourceChange(initCtx, p.which); err != nil {
+		span.SetStatus(codes.Error, "failed to set start")
+		return &labeledError{doing: "starting update", underlying: err}
+	}
+
+	go func() {
+		err := cmd.Run(stdout, stderr)
+		done <- err
+	}()
+	return nil
+}
+
+func (p *proc) noteStartTime() {
+	p.control.Lock()
+	defer p.control.Unlock()
+	now := time.Now()
+	p.started = &now
 }
 
 func (p *proc) toAlphaV1Status() exec2.InvocationAlphaV1Status {
