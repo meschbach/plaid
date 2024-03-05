@@ -14,10 +14,10 @@ const (
 )
 
 type Event struct {
-	When   time.Time
-	Level  EventLevel
-	Format string
-	Params []any
+	When   time.Time  `json:"when"`
+	Level  EventLevel `json:"level"`
+	Format string     `json:"format"`
+	Params []any      `json:"params"`
 }
 
 type logEventReply struct {
