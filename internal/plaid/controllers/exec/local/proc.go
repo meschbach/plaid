@@ -3,6 +3,7 @@ package local
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/meschbach/go-junk-bucket/pkg/streams"
 	"github.com/meschbach/go-junk-bucket/sub"
 	exec2 "github.com/meschbach/plaid/internal/plaid/controllers/exec"
@@ -13,6 +14,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -66,46 +68,21 @@ func (p *proc) Serve(parent context.Context) error {
 			span.SetStatus(codes.Error, "failed to terminate process group")
 			span.RecordError(err)
 		}
+		t := time.NewTimer(30 * time.Second)
+		select {
+		case <-t.C:
+			_, err := fmt.Fprintf(os.Stderr, "WWW\t\tProcess %#v failed to shutdown within 30 seconds.  Leaking\n", cmd)
+			if err != nil {
+				panic(err)
+			}
+		case <-done:
+			return
+		}
 	}()
 
-	if err := (func() error {
-		initCtx, span := tracer.Start(ctx, "proc.Init")
-		defer span.End()
-
-		p.supervisionTree.Add(&logRelay{
-			config:     p.logging,
-			from:       stdout,
-			logBuffer:  procStdout,
-			ref:        p.which,
-			streamName: "stdout",
-			fromSpan:   trace.SpanContextFromContext(initCtx),
-		})
-		p.supervisionTree.Add(&logRelay{
-			config:     p.logging,
-			from:       stderr,
-			logBuffer:  procStderr,
-			ref:        p.which,
-			streamName: "stderr",
-			fromSpan:   trace.SpanContextFromContext(initCtx),
-		})
-
-		func() {
-			p.control.Lock()
-			defer p.control.Unlock()
-			now := time.Now()
-			p.started = &now
-		}()
-		if err := p.onChange.OnResourceChange(initCtx, p.which); err != nil {
-			span.SetStatus(codes.Error, "failed to set start")
-			return &labeledError{doing: "starting update", underlying: err}
-		}
-
-		go func() {
-			err := cmd.Run(stdout, stderr)
-			done <- err
-		}()
-		return nil
-	})(); err != nil {
+	if err := p.startProcess(ctx, cmd, stdout, procStdout, stderr, procStderr, done); err != nil {
+		hasTerminated = true
+		span.SetStatus(codes.Error, "failed to start")
 		return err
 	}
 
@@ -113,46 +90,94 @@ func (p *proc) Serve(parent context.Context) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case err := <-done:
-			return func() error {
-				doneCtx, span := tracer.Start(ctx, "proc.Finish", trace.WithAttributes(p.which.AsTraceAttribute("which")...))
-				defer span.End()
-				hasTerminated = true
-
-				func() {
-					p.control.Lock()
-					defer p.control.Unlock()
-
-					if err == nil {
-						span.SetAttributes(attribute.Bool("exit.error", false), attribute.Bool("exit.normal", true))
-						p.exit = &exitStatus{when: time.Now(), code: 0, problem: err}
-					} else if exit, ok := err.(*exec.ExitError); ok {
-						code := exit.ExitCode()
-						span.SetAttributes(attribute.Bool("exit.error", true), attribute.Int("exit.code", code), attribute.Bool("exit.normal", true))
-						p.exit = &exitStatus{
-							when:    time.Now(),
-							code:    code,
-							problem: err,
-						}
-						err = nil
-					} else {
-						span.SetAttributes(attribute.Bool("exit.error", true), attribute.Bool("exit.normal", false))
-						span.SetStatus(codes.Error, "unknown error")
-						span.RecordError(err)
-						p.exit = &exitStatus{
-							when:    time.Now(),
-							code:    -1,
-							problem: err,
-						}
-					}
-				}()
-				if err := p.onChange.OnResourceChange(doneCtx, p.which); err != nil {
-					return &labeledError{doing: "updating completed state", underlying: err}
-				}
-				return errors.Join(err, suture.ErrDoNotRestart)
-			}()
+		case resultingErrorStatus := <-done:
+			hasTerminated = true
+			return p.finish(ctx, resultingErrorStatus)
 		}
 	}
+}
+
+func (p *proc) startProcess(parent context.Context, cmd *sub.Subcommand, stdout chan string, procStdout *streams.Buffer[logdrain.LogEntry], stderr chan string, procStderr *streams.Buffer[logdrain.LogEntry], done chan error) error {
+	initCtx, span := tracer.Start(parent, "proc.Init")
+	defer span.End()
+
+	p.supervisionTree.Add(&logRelay{
+		config:     p.logging,
+		from:       stdout,
+		logBuffer:  procStdout,
+		ref:        p.which,
+		streamName: "stdout",
+		fromSpan:   trace.SpanContextFromContext(initCtx),
+	})
+	p.supervisionTree.Add(&logRelay{
+		config:     p.logging,
+		from:       stderr,
+		logBuffer:  procStderr,
+		ref:        p.which,
+		streamName: "stderr",
+		fromSpan:   trace.SpanContextFromContext(initCtx),
+	})
+
+	p.noteStartTime()
+	if err := p.onChange.OnResourceChange(initCtx, p.which); err != nil {
+		span.SetStatus(codes.Error, "failed to set start")
+		return &labeledError{doing: "starting update", underlying: err}
+	}
+
+	// todo: feels wrong to launch a goproc here
+	go func() {
+		err := cmd.Run(stdout, stderr)
+		done <- err
+	}()
+	return nil
+}
+
+func (p *proc) noteStartTime() {
+	p.control.Lock()
+	defer p.control.Unlock()
+
+	now := time.Now()
+	p.started = &now
+}
+
+func (p *proc) finish(parent context.Context, result error) error {
+	doneCtx, span := tracer.Start(parent, "proc.Finish", trace.WithAttributes(p.which.AsTraceAttribute("which")...))
+	defer span.End()
+
+	actorErrorState := p.inferFinishedState(span, result)
+	if err := p.onChange.OnResourceChange(doneCtx, p.which); err != nil {
+		return &labeledError{doing: "updating completed state", underlying: err}
+	}
+	return errors.Join(actorErrorState, suture.ErrDoNotRestart)
+}
+
+func (p *proc) inferFinishedState(span trace.Span, result error) error {
+	p.control.Lock()
+	defer p.control.Unlock()
+
+	if result == nil {
+		span.SetAttributes(attribute.Bool("exit.error", false), attribute.Bool("exit.normal", true))
+		p.exit = &exitStatus{when: time.Now(), code: 0, problem: result}
+	} else if exit, ok := result.(*exec.ExitError); ok {
+		code := exit.ExitCode()
+		span.SetAttributes(attribute.Bool("exit.error", true), attribute.Int("exit.code", code), attribute.Bool("exit.normal", true))
+		p.exit = &exitStatus{
+			when:    time.Now(),
+			code:    code,
+			problem: result,
+		}
+		result = nil
+	} else {
+		span.SetAttributes(attribute.Bool("exit.error", true), attribute.Bool("exit.normal", false))
+		span.SetStatus(codes.Error, "unknown error")
+		span.RecordError(result)
+		p.exit = &exitStatus{
+			when:    time.Now(),
+			code:    -1,
+			problem: result,
+		}
+	}
+	return result
 }
 
 func (p *proc) toAlphaV1Status() exec2.InvocationAlphaV1Status {

@@ -3,22 +3,14 @@ package resources
 import (
 	"context"
 	"github.com/meschbach/plaid/internal/junk"
+	"github.com/meschbach/plaid/internal/junk/jtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
-	"time"
 )
 
 func TestResourceOwnership(t *testing.T) {
-	done := junk.SetupTestTracing(t)
-	defer func() {
-		shutdown, complete := context.WithTimeout(context.Background(), 1*time.Second)
-		defer complete()
-
-		done(shutdown)
-	}()
-	testCtx, closeTestContext := context.WithCancel(context.Background())
-	t.Cleanup(closeTestContext)
+	testCtx := jtest.ContextFromEnv(t)
 	plaid := WithTestSubsystem(t, testCtx)
 	client := plaid.Controller.Client()
 
@@ -30,10 +22,7 @@ func TestResourceOwnership(t *testing.T) {
 		watcher, err := plaid.Store.Watcher(ctx)
 		require.NoError(t, err)
 		_, err = watcher.OnResource(ctx, existingRef, func(ctx context.Context, changed ResourceChanged) error {
-			switch changed.Operation {
-			default:
-				return nil
-			}
+			return nil
 		})
 		require.NoError(t, err)
 

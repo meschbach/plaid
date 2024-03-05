@@ -2,11 +2,10 @@ package optest
 
 import (
 	"context"
+	"github.com/meschbach/plaid/internal/junk/jtest"
 	"github.com/meschbach/plaid/resources"
 	"github.com/stretchr/testify/require"
-	"os"
 	"testing"
-	"time"
 )
 
 type System struct {
@@ -38,20 +37,8 @@ func (s *System) MustCreate(ctx context.Context, ref resources.Meta, spec any) {
 	require.NoError(s.t, s.Legacy.Store.Create(ctx, ref, spec))
 }
 
-func contextFromEnv(t *testing.T) (context.Context, func()) {
-	timeoutText, has := os.LookupEnv("TEST_TIMEOUT")
-	if !has {
-		return context.WithCancel(context.Background())
-	} else {
-		timeout, err := time.ParseDuration(timeoutText)
-		require.NoError(t, err, "bad test timeout given: %s", timeoutText)
-		return context.WithTimeout(context.Background(), timeout)
-	}
-}
-
 func New(t *testing.T) (context.Context, *System) {
-	ctx, done := contextFromEnv(t)
-	t.Cleanup(done)
+	ctx := jtest.ContextFromEnv(t)
 
 	legacy := resources.WithTestSubsystem(t, ctx)
 	systemObserver, err := legacy.Store.Watcher(ctx)
