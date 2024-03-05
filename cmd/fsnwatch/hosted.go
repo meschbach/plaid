@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/meschbach/go-junk-bucket/pkg/observability"
 	"github.com/meschbach/plaid/client/resbridge"
 	"github.com/meschbach/plaid/controllers/filewatch/fsn"
 	"github.com/meschbach/plaid/internal/plaid/daemon"
@@ -22,6 +23,12 @@ type plaidOpts struct {
 func withPlaidCobra(cfg *plaidOpts, perform func(ctx context.Context, plaid *daemon.Daemon, args []string) error) func(command *cobra.Command, args []string) error {
 	return func(command *cobra.Command, args []string) error {
 		cmdCtx := command.Context()
+		o11yCfg := observability.DefaultConfig("fsn-watch")
+		o11y, err := o11yCfg.Start(cmdCtx)
+		if err != nil {
+			return err
+		}
+		defer o11y.ShutdownGracefully(cmdCtx)
 
 		procContext, done := signal.NotifyContext(cmdCtx, unix.SIGINT, unix.SIGTERM, unix.SIGHUP)
 		defer done()

@@ -2,9 +2,14 @@ package resbridge
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/meschbach/plaid/internal/plaid/daemon"
 	"github.com/meschbach/plaid/internal/plaid/daemon/wire"
+	"github.com/meschbach/plaid/ipc/grpc/reswire"
 	"github.com/meschbach/plaid/resources"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+	"time"
 )
 
 type daemonStorage struct {
@@ -34,8 +39,20 @@ func (g daemonStorage) GetStatus(ctx context.Context, ref resources.Meta, status
 	return g.client.GetStatus(ctx, ref, status)
 }
 
-func (g daemonStorage) UpdateStatus(ctx context.Context, ref resources.Meta, status any) (bool, error) {
-	panic("todo")
+func (g *daemonStorage) UpdateStatus(ctx context.Context, ref resources.Meta, status any) (bool, error) {
+	asBytes, err := json.Marshal(status)
+	if err != nil {
+		return false, err
+	}
+
+	out, err := g.wire.UpdateStatus(ctx, &wire.UpdateStatusIn{
+		Target: reswire.MetaToWire(ref),
+		Status: asBytes,
+	})
+	if err != nil {
+		return false, err
+	}
+	return out.Exists, err
 }
 
 func (g daemonStorage) GetEvents(ctx context.Context, ref resources.Meta, level resources.EventLevel) ([]resources.Event, bool, error) {
@@ -43,9 +60,18 @@ func (g daemonStorage) GetEvents(ctx context.Context, ref resources.Meta, level 
 	panic("implement me")
 }
 
-func (g daemonStorage) Log(ctx context.Context, ref resources.Meta, level resources.EventLevel, fmt string, args ...any) (bool, error) {
-	//TODO implement me
-	panic("implement me")
+func (g *daemonStorage) Log(ctx context.Context, ref resources.Meta, level resources.EventLevel, fmt string, args ...any) (bool, error) {
+	out, err := g.wire.Log(ctx, &wire.LogIn{
+		Ref:   reswire.MetaToWire(ref),
+		Event: reswire.Eventf(time.Now(), level, fmt, args...),
+	})
+	if err != nil {
+		span := trace.SpanFromContext(ctx)
+		span.SetStatus(codes.Error, "failed to log")
+		span.RecordError(err)
+		return false, err
+	}
+	return out.Exists, err
 }
 
 func (g *daemonStorage) List(ctx context.Context, kind resources.Type) ([]resources.Meta, error) {

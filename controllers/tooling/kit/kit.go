@@ -3,7 +3,6 @@ package kit
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/meschbach/go-junk-bucket/pkg/fx"
 	"github.com/meschbach/plaid/resources"
 	"go.opentelemetry.io/otel/attribute"
@@ -106,7 +105,7 @@ func (k *Kit[Spec, Status, State]) Rescan(parentCtx context.Context) error {
 }
 
 func (k *Kit[Spec, Status, State]) create(parentCtx context.Context, which resources.Meta) error {
-	ctx, span := tracer.Start(parentCtx, "Kit["+which.Type.String()+"]#create", trace.WithAttributes(attribute.Stringer("which", which)))
+	ctx, span := tracer.Start(parentCtx, "Kit["+which.Type.String()+"]#create", trace.WithAttributes(which.AsTraceAttribute("which")...))
 	defer span.End()
 
 	//todo: figure out how we can get multiple create events for the same object
@@ -132,6 +131,7 @@ func (k *Kit[Spec, Status, State]) create(parentCtx context.Context, which resou
 	}
 	runtimeState, err := k.bridge.Create(ctx, which, spec, manager)
 	if err != nil {
+		span.SetStatus(codes.Error, "bridge failed to create")
 		return err
 	}
 	kitState := &state[State]{
@@ -143,13 +143,13 @@ func (k *Kit[Spec, Status, State]) create(parentCtx context.Context, which resou
 }
 
 func (k *Kit[Spec, Status, State]) updated(parentCtx context.Context, changed resources.Meta) error {
-	fmt.Println("kit update")
 	ctx, span := tracer.Start(parentCtx, "Kit["+changed.Type.String()+"]#updated ", trace.WithAttributes(changed.AsTraceAttribute("which")...))
 	defer span.End()
 
 	var s Spec
 	exists, err := k.store.Get(ctx, changed, &s)
 	if err != nil {
+		span.SetStatus(codes.Error, "failed to get resource")
 		return err
 	}
 	if !exists {

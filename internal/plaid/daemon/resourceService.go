@@ -42,6 +42,12 @@ func (d *ResourceService) GetStatus(ctx context.Context, in *wire.GetStatusIn) (
 	}, err
 }
 
+func (d *ResourceService) UpdateStatus(ctx context.Context, in *wire.UpdateStatusIn) (*wire.UpdateStatusOut, error) {
+	which := internalizeMeta(in.Target)
+	exists, err := d.client.UpdateStatusBytes(ctx, which, in.Status)
+	return &wire.UpdateStatusOut{Exists: exists}, err
+}
+
 func (d *ResourceService) GetEvents(ctx context.Context, in *wire.GetEventsIn) (*wire.GetEventsOut, error) {
 	events, exists, err := d.client.GetLogs(ctx, internalizeMeta(in.Ref), internalizeEventLevel(in.Level))
 	if err != nil {
@@ -60,6 +66,19 @@ func (d *ResourceService) GetEvents(ctx context.Context, in *wire.GetEventsIn) (
 		}
 	}
 	return out, nil
+}
+
+func (d *ResourceService) Log(ctx context.Context, in *wire.LogIn) (*wire.LogOut, error) {
+	which := internalizeMeta(in.Ref)
+	level := internalizeEventLevel(in.Event.Level)
+	//when := in.Event.When.AsTime()
+	msg := in.Event.Rendered
+
+	exists, err := d.client.Log(ctx, which, level, msg)
+	if err != nil {
+		return nil, err
+	}
+	return &wire.LogOut{Exists: exists}, nil
 }
 
 func (d *ResourceService) List(ctx context.Context, in *wire.ListIn) (*wire.ListOut, error) {

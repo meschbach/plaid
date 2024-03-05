@@ -6,6 +6,7 @@ import (
 	"github.com/meschbach/plaid/controllers/tooling/kit"
 	"github.com/meschbach/plaid/resources"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"path/filepath"
 )
@@ -15,7 +16,8 @@ type alpha1Interpreter struct {
 }
 
 func (a *alpha1Interpreter) Create(parent context.Context, which resources.Meta, spec Alpha1Spec, bridge kit.Manager) (*watch, error) {
-	ctx, span := tracing.Start(parent, "fileWatch/alphaV1.Create", trace.WithAttributes(attribute.Stringer("which", which)))
+	attrs := append(which.AsTraceAttribute("which"), attribute.String("path", spec.AbsolutePath))
+	ctx, span := tracing.Start(parent, "fileWatch/alphaV1.Create", trace.WithAttributes(attrs...))
 	defer span.End()
 
 	w := &watch{
@@ -24,14 +26,21 @@ func (a *alpha1Interpreter) Create(parent context.Context, which resources.Meta,
 		bridge: bridge,
 	}
 	if len(spec.AbsolutePath) == 0 {
+		span.AddEvent("zero length")
 		_, err := a.runtime.resources.Log(ctx, which, resources.Error, "empty absolute Path")
-		return nil, err
+		return w, err
 	}
 	var err error
 	if filepath.IsAbs(spec.AbsolutePath) {
 		err = a.runtime.registerWatcher(ctx, w.base, w)
+		if err != nil {
+			span.SetStatus(codes.Error, "failed to register watcher")
+		}
 	} else {
 		_, err = a.runtime.resources.Log(ctx, which, resources.Error, "Path %q is not absolute", spec.AbsolutePath)
+		if err != nil {
+			span.SetStatus(codes.Error, "path is not absolute")
+		}
 	}
 	return w, err
 }
