@@ -6,7 +6,6 @@ import (
 	"github.com/meschbach/plaid/internal/plaid/daemon/wire"
 	"github.com/meschbach/plaid/resources"
 	"github.com/thejerf/suture/v4"
-	"go.opentelemetry.io/otel/codes"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -110,8 +109,7 @@ func internalizeMeta(meta *wire.Meta) resources.Meta {
 }
 
 func (d *ResourceService) Watcher(w wire.ResourceController_WatcherServer) error {
-	ctx, span := tracer.Start(w.Context(), "ResourceService.Watcher: implementation")
-	defer span.End()
+	ctx := w.Context()
 	watcher, err := d.client.Watcher(ctx)
 	if err != nil {
 		return err
@@ -135,9 +133,6 @@ func (d *ResourceService) Watcher(w wire.ResourceController_WatcherServer) error
 	if result != nil {
 		if result == context.Canceled {
 			result = nil
-		} else {
-			span.SetStatus(codes.Error, "watcher service failed")
-			span.RecordError(err)
 		}
 	}
 	return result

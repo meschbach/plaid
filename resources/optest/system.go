@@ -9,11 +9,12 @@ import (
 )
 
 type System struct {
-	t         *testing.T
-	root      context.Context
-	Legacy    *resources.TestSubsystem
-	observer  *resources.ClientWatcher
-	observers *resources.MetaContainer[ObservedResource]
+	t             *testing.T
+	root          context.Context
+	Legacy        *resources.TestSubsystem
+	observer      resources.Watcher
+	observers     *resources.MetaContainer[ObservedResource]
+	typeObservers *resources.TypeContainer[ObservedType]
 }
 
 func (s *System) Observe(ctx context.Context, ref resources.Meta) *ObservedResource {
@@ -33,6 +34,24 @@ func (s *System) Observe(ctx context.Context, ref resources.Meta) *ObservedResou
 	return observer
 }
 
+func (s *System) ObserveType(ctx context.Context, kind resources.Type) *ObservedType {
+	observer, created := s.typeObservers.GetOrCreate(kind, func() *ObservedType {
+		o := &ObservedType{
+			system: s,
+		}
+		o.AnyEvent = &TypeAspect{observer: o}
+		o.Create = &TypeAspect{observer: o}
+		o.Delete = &TypeAspect{observer: o}
+		return o
+	})
+	if created {
+		token, err := s.observer.OnType(ctx, kind, observer.onResourceEvent)
+		require.NoError(s.t, err)
+		observer.token = token
+	}
+	return observer
+}
+
 func (s *System) MustCreate(ctx context.Context, ref resources.Meta, spec any) {
 	require.NoError(s.t, s.Legacy.Store.Create(ctx, ref, spec))
 }
@@ -44,11 +63,28 @@ func New(t *testing.T) (context.Context, *System) {
 	systemObserver, err := legacy.Store.Watcher(ctx)
 	require.NoError(t, err)
 	sys := &System{
-		t:         t,
-		root:      ctx,
-		Legacy:    legacy,
-		observer:  systemObserver,
-		observers: resources.NewMetaContainer[ObservedResource](),
+		t:             t,
+		root:          ctx,
+		Legacy:        legacy,
+		observer:      systemObserver,
+		observers:     resources.NewMetaContainer[ObservedResource](),
+		typeObservers: resources.NewTypeContainer[ObservedType](),
 	}
 	return ctx, sys
+}
+
+func From(t *testing.T, ctx context.Context, s resources.System) *System {
+	storage, err := s.Storage(ctx)
+	require.NoError(t, err)
+	watcher, err := storage.Observer(ctx)
+	require.NoError(t, err)
+
+	return &System{
+		t:             t,
+		root:          nil,
+		Legacy:        nil,
+		observer:      watcher,
+		observers:     resources.NewMetaContainer[ObservedResource](),
+		typeObservers: resources.NewTypeContainer[ObservedType](),
+	}
 }

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/meschbach/go-junk-bucket/pkg/observability"
-	"github.com/meschbach/plaid/client/resbridge"
 	"github.com/meschbach/plaid/controllers/filewatch/fsn"
 	"github.com/meschbach/plaid/internal/plaid/daemon"
 	"github.com/meschbach/plaid/internal/plaid/ephemeral"
@@ -20,7 +19,7 @@ type plaidOpts struct {
 	Service string
 }
 
-func withPlaidCobra(cfg *plaidOpts, perform func(ctx context.Context, plaid *daemon.Daemon, args []string) error) func(command *cobra.Command, args []string) error {
+func withPlaidCobra(cfg *plaidOpts, perform func(ctx context.Context, plaid *daemon.Daemon, tree *suture.Supervisor, args []string) error) func(command *cobra.Command, args []string) error {
 	return func(command *cobra.Command, args []string) error {
 		cmdCtx := command.Context()
 		o11yCfg := observability.DefaultConfig("fsn-watch")
@@ -44,16 +43,17 @@ func withPlaidCobra(cfg *plaidOpts, perform func(ctx context.Context, plaid *dae
 		}
 		defer onDisconnect()
 
-		return perform(procContext, wireClient, args)
+		return perform(procContext, wireClient, operationsTree, args)
 	}
 }
 
-func runHosted(ctx context.Context, plaid *daemon.Daemon, args []string) error {
-	sys := resbridge.SystemFromDaemonV1(plaid)
+func runHosted(ctx context.Context, plaid *daemon.Daemon, tree *suture.Supervisor, args []string) error {
+	sys := daemon.SystemFromDaemonV1(plaid)
 
 	fmt.Println("Connected, listing")
 	fsnTree := fsn.NewFileWatchSystem(sys)
-	result := fsnTree.Serve(ctx)
+	tree.Add(fsnTree)
+	result := tree.Serve(ctx)
 	fmt.Println("Shutting down.")
 	if errors.Is(result, context.Canceled) {
 		result = nil

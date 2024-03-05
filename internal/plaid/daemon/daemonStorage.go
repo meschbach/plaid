@@ -1,9 +1,8 @@
-package resbridge
+package daemon
 
 import (
 	"context"
 	"encoding/json"
-	"github.com/meschbach/plaid/internal/plaid/daemon"
 	"github.com/meschbach/plaid/internal/plaid/daemon/wire"
 	"github.com/meschbach/plaid/ipc/grpc/reswire"
 	"github.com/meschbach/plaid/resources"
@@ -13,7 +12,7 @@ import (
 )
 
 type daemonStorage struct {
-	client daemon.Client
+	client Client
 	wire   wire.ResourceControllerClient
 }
 
@@ -83,6 +82,6 @@ func (g *daemonStorage) Observer(ctx context.Context) (resources.Watcher, error)
 	if err != nil {
 		return nil, err
 	}
-	c := make(chan resources.ResourceChanged)
-	return &daemonWatcher{w, c}, nil
+	c := make(chan resources.ResourceChanged, 10)
+	return &daemonWatcher{w, c, make(chan daemonDispatch, 10)}, nil
 }

@@ -3,7 +3,6 @@ package fakefs
 
 import (
 	"context"
-	"fmt"
 	"github.com/meschbach/go-junk-bucket/pkg/fx"
 	"github.com/meschbach/plaid/controllers/filewatch"
 	"go.opentelemetry.io/otel/trace"

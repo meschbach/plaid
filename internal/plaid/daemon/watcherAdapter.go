@@ -53,28 +53,30 @@ func (w *watcherAdapter) Serve(ctx context.Context) error {
 }
 
 func (w *watcherAdapter) dispatch(serviceContext context.Context, e *wire.WatcherEventOut) error {
-	if op, has := w.tags[resources.WatchToken(e.Tag)]; has {
-		operation := internalizeOperation(e.Op)
-		which := internalizeMeta(e.Ref)
+	operation := internalizeOperation(e.Op)
+	which := internalizeMeta(e.Ref)
+	ctx, span := tracer.Start(serviceContext, "wire/ClientWatcher.dispatch["+operation.String()+" of "+which.Type.String()+"]")
+	defer span.End()
+	span.SetAttributes(which.AsTraceAttribute("which")...)
+	span.SetAttributes(attribute.Int64("tag", int64(e.Tag)))
+	op, has := w.tags[resources.WatchToken(e.Tag)]
+	if !has {
+		span.AddEvent("tag missing")
+		//todo: note tag went missing
+	}
 
-		parentContext := trace.ContextWithRemoteSpanContext(serviceContext, op.parentSpan)
-		ctx, span := tracer.Start(parentContext, operation.String()+" of "+which.Type.String())
-		defer span.End()
-		if err := op.handler(ctx, resources.ResourceChanged{
-			Which:     which,
-			Operation: operation,
-			Tracing:   trace.LinkFromContext(ctx),
-		}); err != nil {
-			if errors.Is(err, io.EOF) || errors.Is(err, context.Canceled) {
-				span.AddEvent("eof or canceled")
-				return suture.ErrDoNotRestart
-			} else {
-				span.SetStatus(otelcodes.Error, "unexpected wire error")
-				return err
-			}
+	if err := op.handler(ctx, resources.ResourceChanged{
+		Which:     which,
+		Operation: operation,
+		Tracing:   trace.LinkFromContext(ctx),
+	}); err != nil {
+		if errors.Is(err, io.EOF) || errors.Is(err, context.Canceled) {
+			span.AddEvent("eof or canceled")
+			return suture.ErrDoNotRestart
+		} else {
+			span.SetStatus(otelcodes.Error, "unexpected wire error")
+			return err
 		}
-	} else {
-		//todo: resource went missing?
 	}
 	return nil
 }

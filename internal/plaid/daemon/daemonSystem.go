@@ -1,13 +1,12 @@
-package resbridge
+package daemon
 
 import (
 	"context"
-	"github.com/meschbach/plaid/internal/plaid/daemon"
 	"github.com/meschbach/plaid/resources"
 )
 
 type daemonSystem struct {
-	d *daemon.Daemon
+	d *Daemon
 }
 
 func (d *daemonSystem) Storage(ctx context.Context) (resources.Storage, error) {
@@ -17,6 +16,6 @@ func (d *daemonSystem) Storage(ctx context.Context) (resources.Storage, error) {
 	}, nil
 }
 
-func SystemFromDaemonV1(d *daemon.Daemon) resources.System {
+func SystemFromDaemonV1(d *Daemon) resources.System {
 	return &daemonSystem{d: d}
 }

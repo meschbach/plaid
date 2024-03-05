@@ -19,7 +19,7 @@ func (w *watcherBridge) Serve(ctx context.Context) error {
 	for {
 		select {
 		case event, ok := <-w.events:
-			//w.events was closed
+			//underlyingWatcher.events was closed
 			if !ok {
 				continue
 			}
@@ -54,9 +54,10 @@ func (w *watcherBridge) consumeInput(ctx context.Context, e *wire.WatcherEventIn
 	}
 	if e.OnType != nil {
 		token, err := w.watcher.OnType(ctx, internalizeType(e.OnType), func(ctx context.Context, changed resources.ResourceChanged) error {
+			ref := metaToWire(changed.Which)
 			return w.stream.Send(&wire.WatcherEventOut{
 				Tag: e.Tag,
-				Ref: e.OnResource,
+				Ref: ref,
 				Op:  exportOp(changed.Operation),
 			})
 		})
