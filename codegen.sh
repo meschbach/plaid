@@ -7,5 +7,5 @@ function gen() {
       $1
 }
 
-gen ./internal/plaid/daemon/wire/resources.proto
+gen ./ipc/grpc/reswire/resources.proto
 gen ./ipc/grpc/logger/logger.proto

@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/meschbach/plaid/internal/plaid/daemon/wire"
 	"github.com/meschbach/plaid/ipc/grpc/logger"
+	"github.com/meschbach/plaid/ipc/grpc/reswire"
 	"github.com/meschbach/plaid/resources"
 	"github.com/thejerf/suture/v4"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -25,7 +25,7 @@ func (u *UnableToConnect) Error() string {
 
 type Daemon struct {
 	grpcLayer   *grpc.ClientConn
-	WireStorage wire.ResourceControllerClient
+	WireStorage reswire.ResourceControllerClient
 	Storage     Client
 	LoggerV1    logger.V1Client
 	Tree        *suture.Supervisor
@@ -75,7 +75,7 @@ func DialClient(ctx context.Context, address string, parent *suture.Supervisor) 
 	}
 	defer dailDone()
 
-	wireClient := wire.NewResourceControllerClient(conn)
+	wireClient := reswire.NewResourceControllerClient(conn)
 	resourceAdapter := NewWireClientAdapter(parent, wireClient)
 	loggerV1Endpoint := logger.NewV1Client(conn)
 	d := &Daemon{
@@ -90,53 +90,53 @@ func DialClient(ctx context.Context, address string, parent *suture.Supervisor) 
 	}, nil
 }
 
-func typeToWire(t resources.Type) *wire.Type {
-	return &wire.Type{
+func typeToWire(t resources.Type) *reswire.Type {
+	return &reswire.Type{
 		Kind:    t.Kind,
 		Version: t.Version,
 	}
 }
 
-func metaToWire(ref resources.Meta) *wire.Meta {
-	return &wire.Meta{
+func metaToWire(ref resources.Meta) *reswire.Meta {
+	return &reswire.Meta{
 		Kind: typeToWire(ref.Type),
 		Name: ref.Name,
 	}
 }
 
-func externalizeEventLevel(l resources.EventLevel) wire.EventLevel {
+func externalizeEventLevel(l resources.EventLevel) reswire.EventLevel {
 	switch l {
 	case resources.AllEvents:
-		return wire.EventLevel_All
+		return reswire.EventLevel_All
 	case resources.Info:
-		return wire.EventLevel_Info
+		return reswire.EventLevel_Info
 	case resources.Error:
-		return wire.EventLevel_Error
+		return reswire.EventLevel_Error
 	default:
 		panic(fmt.Sprintf("unhandled translation from %d", l))
 	}
 }
 
-func internalizeEventLevel(l wire.EventLevel) resources.EventLevel {
+func internalizeEventLevel(l reswire.EventLevel) resources.EventLevel {
 	switch l {
-	case wire.EventLevel_All:
+	case reswire.EventLevel_All:
 		return resources.AllEvents
-	case wire.EventLevel_Error:
+	case reswire.EventLevel_Error:
 		return resources.Error
-	case wire.EventLevel_Info:
+	case reswire.EventLevel_Info:
 		return resources.Info
 	default:
 		panic(fmt.Sprintf("unhandled translation from %d", l))
 	}
 }
 
-func internalizeOperation(op wire.WatcherEventOut_Op) resources.ResourceChangedOperation {
+func internalizeOperation(op reswire.WatcherEventOut_Op) resources.ResourceChangedOperation {
 	switch op {
-	case wire.WatcherEventOut_Created:
+	case reswire.WatcherEventOut_Created:
 		return resources.CreatedEvent
-	case wire.WatcherEventOut_UpdatedStatus:
+	case reswire.WatcherEventOut_UpdatedStatus:
 		return resources.StatusUpdated
-	case wire.WatcherEventOut_Deleted:
+	case reswire.WatcherEventOut_Deleted:
 		return resources.DeletedEvent
 	default:
 		panic(fmt.Sprintf("unknown value %q", op.String()))

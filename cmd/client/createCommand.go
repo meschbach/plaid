@@ -7,7 +7,6 @@ import (
 	"github.com/meschbach/go-junk-bucket/pkg/files"
 	"github.com/meschbach/plaid/client"
 	"github.com/meschbach/plaid/internal/plaid/daemon"
-	"github.com/meschbach/plaid/internal/plaid/daemon/wire"
 	"github.com/meschbach/plaid/ipc/grpc/reswire"
 	"github.com/meschbach/plaid/resources"
 	"github.com/spf13/cobra"
@@ -37,7 +36,7 @@ func createCommand(rt *client.Runtime) *cobra.Command {
 				return nil
 			}
 
-			_, err := client.WireStorage.Create(ctx, &wire.CreateResourceIn{
+			_, err := client.WireStorage.Create(ctx, &reswire.CreateResourceIn{
 				Target: reswire.MetaToWire(manifest.Meta.Name),
 				Spec:   manifest.Spec,
 			})

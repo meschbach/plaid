@@ -3,14 +3,14 @@ package daemon
 import (
 	"context"
 	"fmt"
-	"github.com/meschbach/plaid/internal/plaid/daemon/wire"
+	"github.com/meschbach/plaid/ipc/grpc/reswire"
 	"github.com/meschbach/plaid/resources"
 )
 
 // watcherBridge is the service side drain for a specific watch.
 type watcherBridge struct {
-	events  <-chan *wire.WatcherEventIn
-	stream  wire.ResourceController_WatcherServer
+	events  <-chan *reswire.WatcherEventIn
+	stream  reswire.ResourceController_WatcherServer
 	watcher *resources.ClientWatcher
 	tokens  map[uint64]resources.WatchToken
 }
@@ -36,12 +36,12 @@ func (w *watcherBridge) Serve(ctx context.Context) error {
 	}
 }
 
-func (w *watcherBridge) consumeInput(ctx context.Context, e *wire.WatcherEventIn) error {
+func (w *watcherBridge) consumeInput(ctx context.Context, e *reswire.WatcherEventIn) error {
 	//Client requested a resource watch
 	if e.OnResource != nil {
 		res := internalizeMeta(e.OnResource)
 		token, err := w.watcher.OnResource(ctx, res, func(ctx context.Context, changed resources.ResourceChanged) error {
-			return w.stream.Send(&wire.WatcherEventOut{
+			return w.stream.Send(&reswire.WatcherEventOut{
 				Tag: e.Tag,
 				Ref: e.OnResource,
 				Op:  exportOp(changed.Operation),
@@ -55,7 +55,7 @@ func (w *watcherBridge) consumeInput(ctx context.Context, e *wire.WatcherEventIn
 	if e.OnType != nil {
 		token, err := w.watcher.OnType(ctx, internalizeType(e.OnType), func(ctx context.Context, changed resources.ResourceChanged) error {
 			ref := metaToWire(changed.Which)
-			return w.stream.Send(&wire.WatcherEventOut{
+			return w.stream.Send(&reswire.WatcherEventOut{
 				Tag: e.Tag,
 				Ref: ref,
 				Op:  exportOp(changed.Operation),
@@ -79,14 +79,14 @@ func (w *watcherBridge) consumeInput(ctx context.Context, e *wire.WatcherEventIn
 	return nil
 }
 
-func exportOp(operation resources.ResourceChangedOperation) wire.WatcherEventOut_Op {
+func exportOp(operation resources.ResourceChangedOperation) reswire.WatcherEventOut_Op {
 	switch operation {
 	case resources.CreatedEvent:
-		return wire.WatcherEventOut_Created
+		return reswire.WatcherEventOut_Created
 	case resources.StatusUpdated:
-		return wire.WatcherEventOut_UpdatedStatus
+		return reswire.WatcherEventOut_UpdatedStatus
 	case resources.DeletedEvent:
-		return wire.WatcherEventOut_Deleted
+		return reswire.WatcherEventOut_Deleted
 	default:
 		panic(fmt.Sprintf("unknown operation %d", operation))
 	}

@@ -3,7 +3,6 @@ package daemon
 import (
 	"context"
 	"encoding/json"
-	"github.com/meschbach/plaid/internal/plaid/daemon/wire"
 	"github.com/meschbach/plaid/ipc/grpc/reswire"
 	"github.com/meschbach/plaid/resources"
 	"go.opentelemetry.io/otel/codes"
@@ -13,7 +12,7 @@ import (
 
 type daemonStorage struct {
 	client Client
-	wire   wire.ResourceControllerClient
+	wire   reswire.ResourceControllerClient
 }
 
 // todo: implement creation options
@@ -44,7 +43,7 @@ func (g *daemonStorage) UpdateStatus(ctx context.Context, ref resources.Meta, st
 		return false, err
 	}
 
-	out, err := g.wire.UpdateStatus(ctx, &wire.UpdateStatusIn{
+	out, err := g.wire.UpdateStatus(ctx, &reswire.UpdateStatusIn{
 		Target: reswire.MetaToWire(ref),
 		Status: asBytes,
 	})
@@ -60,7 +59,7 @@ func (g daemonStorage) GetEvents(ctx context.Context, ref resources.Meta, level 
 }
 
 func (g *daemonStorage) Log(ctx context.Context, ref resources.Meta, level resources.EventLevel, fmt string, args ...any) (bool, error) {
-	out, err := g.wire.Log(ctx, &wire.LogIn{
+	out, err := g.wire.Log(ctx, &reswire.LogIn{
 		Ref:   reswire.MetaToWire(ref),
 		Event: reswire.Eventf(time.Now(), level, fmt, args...),
 	})

@@ -3,62 +3,62 @@ package daemon
 import (
 	"context"
 	"fmt"
-	"github.com/meschbach/plaid/internal/plaid/daemon/wire"
+	"github.com/meschbach/plaid/ipc/grpc/reswire"
 	"github.com/meschbach/plaid/resources"
 	"github.com/thejerf/suture/v4"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type ResourceService struct {
-	wire.UnimplementedResourceControllerServer
+	reswire.UnimplementedResourceControllerServer
 	client *resources.Client
 }
 
-func (d *ResourceService) Create(ctx context.Context, w *wire.CreateResourceIn) (*wire.CreateResourceOut, error) {
+func (d *ResourceService) Create(ctx context.Context, w *reswire.CreateResourceIn) (*reswire.CreateResourceOut, error) {
 	err := d.client.CreateBytes(ctx, internalizeMeta(w.Target), w.Spec)
-	return &wire.CreateResourceOut{}, err
+	return &reswire.CreateResourceOut{}, err
 }
 
-func (d *ResourceService) Delete(ctx context.Context, w *wire.DeleteResourceIn) (*wire.DeleteResourceOut, error) {
+func (d *ResourceService) Delete(ctx context.Context, w *reswire.DeleteResourceIn) (*reswire.DeleteResourceOut, error) {
 	target := internalizeMeta(w.Ref)
 	exists, err := d.client.Delete(ctx, target)
-	return &wire.DeleteResourceOut{Success: exists}, err
+	return &reswire.DeleteResourceOut{Success: exists}, err
 }
 
-func (d *ResourceService) Get(ctx context.Context, in *wire.GetIn) (*wire.GetOut, error) {
+func (d *ResourceService) Get(ctx context.Context, in *reswire.GetIn) (*reswire.GetOut, error) {
 	data, exists, err := d.client.GetBytes(ctx, internalizeMeta(in.Target))
-	return &wire.GetOut{
+	return &reswire.GetOut{
 		Exists: exists,
 		Spec:   data,
 	}, err
 }
 
-func (d *ResourceService) GetStatus(ctx context.Context, in *wire.GetStatusIn) (*wire.GetStatusOut, error) {
+func (d *ResourceService) GetStatus(ctx context.Context, in *reswire.GetStatusIn) (*reswire.GetStatusOut, error) {
 	data, exists, err := d.client.GetStatusBytes(ctx, internalizeMeta(in.Target))
-	return &wire.GetStatusOut{
+	return &reswire.GetStatusOut{
 		Exists: exists,
 		Status: data,
 	}, err
 }
 
-func (d *ResourceService) UpdateStatus(ctx context.Context, in *wire.UpdateStatusIn) (*wire.UpdateStatusOut, error) {
+func (d *ResourceService) UpdateStatus(ctx context.Context, in *reswire.UpdateStatusIn) (*reswire.UpdateStatusOut, error) {
 	which := internalizeMeta(in.Target)
 	exists, err := d.client.UpdateStatusBytes(ctx, which, in.Status)
-	return &wire.UpdateStatusOut{Exists: exists}, err
+	return &reswire.UpdateStatusOut{Exists: exists}, err
 }
 
-func (d *ResourceService) GetEvents(ctx context.Context, in *wire.GetEventsIn) (*wire.GetEventsOut, error) {
+func (d *ResourceService) GetEvents(ctx context.Context, in *reswire.GetEventsIn) (*reswire.GetEventsOut, error) {
 	events, exists, err := d.client.GetLogs(ctx, internalizeMeta(in.Ref), internalizeEventLevel(in.Level))
 	if err != nil {
 		return nil, err
 	}
 
-	out := &wire.GetEventsOut{
+	out := &reswire.GetEventsOut{
 		Exists: exists,
 	}
-	out.Events = make([]*wire.Event, len(events))
+	out.Events = make([]*reswire.Event, len(events))
 	for i, e := range events {
-		out.Events[i] = &wire.Event{
+		out.Events[i] = &reswire.Event{
 			When:     timestamppb.New(e.When),
 			Level:    externalizeEventLevel(e.Level),
 			Rendered: fmt.Sprintf(e.Format, e.Params...),
@@ -67,7 +67,7 @@ func (d *ResourceService) GetEvents(ctx context.Context, in *wire.GetEventsIn) (
 	return out, nil
 }
 
-func (d *ResourceService) Log(ctx context.Context, in *wire.LogIn) (*wire.LogOut, error) {
+func (d *ResourceService) Log(ctx context.Context, in *reswire.LogIn) (*reswire.LogOut, error) {
 	which := internalizeMeta(in.Ref)
 	level := internalizeEventLevel(in.Event.Level)
 	//when := in.Event.When.AsTime()
@@ -77,17 +77,17 @@ func (d *ResourceService) Log(ctx context.Context, in *wire.LogIn) (*wire.LogOut
 	if err != nil {
 		return nil, err
 	}
-	return &wire.LogOut{Exists: exists}, nil
+	return &reswire.LogOut{Exists: exists}, nil
 }
 
-func (d *ResourceService) List(ctx context.Context, in *wire.ListIn) (*wire.ListOut, error) {
+func (d *ResourceService) List(ctx context.Context, in *reswire.ListIn) (*reswire.ListOut, error) {
 	kind := internalizeType(in.Type)
 	refs, err := d.client.List(ctx, kind)
 	if err != nil {
 		return nil, err
 	}
-	result := &wire.ListOut{
-		Ref: make([]*wire.Meta, len(refs)),
+	result := &reswire.ListOut{
+		Ref: make([]*reswire.Meta, len(refs)),
 	}
 	for i, r := range refs {
 		result.Ref[i] = metaToWire(r)
@@ -95,27 +95,27 @@ func (d *ResourceService) List(ctx context.Context, in *wire.ListIn) (*wire.List
 	return result, nil
 }
 
-func internalizeType(p *wire.Type) resources.Type {
+func internalizeType(p *reswire.Type) resources.Type {
 	return resources.Type{
 		Kind:    p.Kind,
 		Version: p.Version,
 	}
 }
-func internalizeMeta(meta *wire.Meta) resources.Meta {
+func internalizeMeta(meta *reswire.Meta) resources.Meta {
 	return resources.Meta{
 		Type: internalizeType(meta.Kind),
 		Name: meta.Name,
 	}
 }
 
-func (d *ResourceService) Watcher(w wire.ResourceController_WatcherServer) error {
+func (d *ResourceService) Watcher(w reswire.ResourceController_WatcherServer) error {
 	ctx := w.Context()
 	watcher, err := d.client.Watcher(ctx)
 	if err != nil {
 		return err
 	}
 
-	events := make(chan *wire.WatcherEventIn, 4)
+	events := make(chan *reswire.WatcherEventIn, 4)
 	pump := &serviceWatcherInputPump{
 		stream: w,
 		events: events,

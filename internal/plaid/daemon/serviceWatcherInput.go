@@ -2,14 +2,14 @@ package daemon
 
 import (
 	"context"
-	"github.com/meschbach/plaid/internal/plaid/daemon/wire"
+	"github.com/meschbach/plaid/ipc/grpc/reswire"
 	"github.com/thejerf/suture/v4"
 	"io"
 )
 
 type serviceWatcherInputPump struct {
-	stream wire.ResourceController_WatcherServer
-	events chan *wire.WatcherEventIn
+	stream reswire.ResourceController_WatcherServer
+	events chan *reswire.WatcherEventIn
 }
 
 func (s *serviceWatcherInputPump) Serve(ctx context.Context) error {

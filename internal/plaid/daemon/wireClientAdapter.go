@@ -3,17 +3,17 @@ package daemon
 import (
 	"context"
 	"encoding/json"
-	"github.com/meschbach/plaid/internal/plaid/daemon/wire"
+	"github.com/meschbach/plaid/ipc/grpc/reswire"
 	"github.com/meschbach/plaid/resources"
 	"github.com/thejerf/suture/v4"
 )
 
 type WireClientAdapter struct {
-	wire     wire.ResourceControllerClient
+	wire     reswire.ResourceControllerClient
 	workPool *suture.Supervisor
 }
 
-func NewWireClientAdapter(workPool *suture.Supervisor, client wire.ResourceControllerClient) *WireClientAdapter {
+func NewWireClientAdapter(workPool *suture.Supervisor, client reswire.ResourceControllerClient) *WireClientAdapter {
 	return &WireClientAdapter{
 		wire:     client,
 		workPool: workPool,
@@ -27,7 +27,7 @@ func (w *WireClientAdapter) Create(ctx context.Context, ref resources.Meta, spec
 	}
 
 	wireRef := metaToWire(ref)
-	_, err = w.wire.Create(ctx, &wire.CreateResourceIn{
+	_, err = w.wire.Create(ctx, &reswire.CreateResourceIn{
 		Target: wireRef,
 		Spec:   bytes,
 	})
@@ -36,13 +36,13 @@ func (w *WireClientAdapter) Create(ctx context.Context, ref resources.Meta, spec
 
 func (w *WireClientAdapter) Delete(ctx context.Context, ref resources.Meta) error {
 	wireRef := metaToWire(ref)
-	_, err := w.wire.Delete(ctx, &wire.DeleteResourceIn{Ref: wireRef})
+	_, err := w.wire.Delete(ctx, &reswire.DeleteResourceIn{Ref: wireRef})
 	return err
 }
 
 func (w *WireClientAdapter) Get(ctx context.Context, ref resources.Meta, spec any) (bool, error) {
 	wireRef := metaToWire(ref)
-	out, err := w.wire.Get(ctx, &wire.GetIn{
+	out, err := w.wire.Get(ctx, &reswire.GetIn{
 		Target: wireRef,
 	})
 	if err != nil {
@@ -57,7 +57,7 @@ func (w *WireClientAdapter) Get(ctx context.Context, ref resources.Meta, spec an
 
 func (w *WireClientAdapter) GetStatus(ctx context.Context, ref resources.Meta, status any) (bool, error) {
 	wireRef := metaToWire(ref)
-	out, err := w.wire.GetStatus(ctx, &wire.GetStatusIn{
+	out, err := w.wire.GetStatus(ctx, &reswire.GetStatusIn{
 		Target: wireRef,
 	})
 	if err != nil {
@@ -75,7 +75,7 @@ func (w *WireClientAdapter) GetStatus(ctx context.Context, ref resources.Meta, s
 
 func (w *WireClientAdapter) GetEvents(ctx context.Context, ref resources.Meta, level resources.EventLevel) ([]resources.Event, error) {
 	wireRef := metaToWire(ref)
-	out, err := w.wire.GetEvents(ctx, &wire.GetEventsIn{
+	out, err := w.wire.GetEvents(ctx, &reswire.GetEventsIn{
 		Ref:   wireRef,
 		Level: externalizeEventLevel(level),
 	})
@@ -100,7 +100,7 @@ func (w *WireClientAdapter) GetEvents(ctx context.Context, ref resources.Meta, l
 
 func (w *WireClientAdapter) List(ctx context.Context, kind resources.Type) ([]resources.Meta, error) {
 	wireKind := typeToWire(kind)
-	out, err := w.wire.List(ctx, &wire.ListIn{Type: wireKind})
+	out, err := w.wire.List(ctx, &reswire.ListIn{Type: wireKind})
 	if err != nil {
 		return nil, err
 	}

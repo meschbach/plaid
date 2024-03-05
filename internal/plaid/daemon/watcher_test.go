@@ -2,7 +2,7 @@ package daemon
 
 import (
 	"context"
-	"github.com/meschbach/plaid/internal/plaid/daemon/wire"
+	"github.com/meschbach/plaid/ipc/grpc/reswire"
 	"github.com/meschbach/plaid/resources"
 	"github.com/meschbach/plaid/resources/optest"
 	"github.com/stretchr/testify/require"
@@ -17,7 +17,7 @@ func TestWatcher(t *testing.T) {
 	ctx, serviceSide := optest.New(t)
 
 	s := grpc.NewServer()
-	wire.RegisterResourceControllerServer(s, &ResourceService{
+	reswire.RegisterResourceControllerServer(s, &ResourceService{
 		client: serviceSide.Legacy.Controller.Client(),
 	})
 
@@ -36,7 +36,7 @@ func TestWatcher(t *testing.T) {
 	conn, _ := grpc.DialContext(ctx, "", grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
 		return listener.Dial()
 	}), grpc.WithInsecure(), grpc.WithBlock())
-	wireClient := wire.NewResourceControllerClient(conn)
+	wireClient := reswire.NewResourceControllerClient(conn)
 	storageSupervisor := suture.NewSimple("wire.storage")
 	serviceSide.Legacy.AttachController("wire.storage", storageSupervisor)
 	storageWrapper := NewWireClientAdapter(storageSupervisor, wireClient)

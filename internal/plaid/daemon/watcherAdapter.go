@@ -3,7 +3,7 @@ package daemon
 import (
 	"context"
 	"errors"
-	"github.com/meschbach/plaid/internal/plaid/daemon/wire"
+	"github.com/meschbach/plaid/ipc/grpc/reswire"
 	"github.com/meschbach/plaid/resources"
 	"github.com/thejerf/suture/v4"
 	"go.opentelemetry.io/otel/attribute"
@@ -22,8 +22,8 @@ type wireAdapterHandler struct {
 
 // watcherAdapter is a client to fulfill watcher semantics.
 type watcherAdapter struct {
-	wire   wire.ResourceControllerClient
-	stream wire.ResourceController_WatcherClient
+	wire   reswire.ResourceControllerClient
+	stream reswire.ResourceController_WatcherClient
 	tags   map[resources.WatchToken]*wireAdapterHandler
 	next   atomic.Int32
 }
@@ -52,7 +52,7 @@ func (w *watcherAdapter) Serve(ctx context.Context) error {
 	}
 }
 
-func (w *watcherAdapter) dispatch(serviceContext context.Context, e *wire.WatcherEventOut) error {
+func (w *watcherAdapter) dispatch(serviceContext context.Context, e *reswire.WatcherEventOut) error {
 	operation := internalizeOperation(e.Op)
 	which := internalizeMeta(e.Ref)
 	ctx, span := tracer.Start(serviceContext, "wire/ClientWatcher.dispatch["+operation.String()+" of "+which.Type.String()+"]")
@@ -84,7 +84,7 @@ func (w *watcherAdapter) dispatch(serviceContext context.Context, e *wire.Watche
 func (w *watcherAdapter) OnType(ctx context.Context, kind resources.Type, consume resources.OnResourceChanged) (resources.WatchToken, error) {
 	tag := w.next.Add(1)
 	k := typeToWire(kind)
-	if err := w.stream.Send(&wire.WatcherEventIn{
+	if err := w.stream.Send(&reswire.WatcherEventIn{
 		Tag:    uint64(tag),
 		OnType: k,
 	}); err != nil {
@@ -100,7 +100,7 @@ func (w *watcherAdapter) OnResource(parent context.Context, ref resources.Meta, 
 	defer span.End()
 	tag := w.next.Add(1)
 	wireRef := metaToWire(ref)
-	if err := w.stream.Send(&wire.WatcherEventIn{
+	if err := w.stream.Send(&reswire.WatcherEventIn{
 		Tag:        uint64(tag),
 		OnResource: wireRef,
 	}); err != nil {
@@ -122,7 +122,7 @@ func noOpChangeListener(ctx context.Context, changed resources.ResourceChanged) 
 func (w *watcherAdapter) Off(ctx context.Context, token resources.WatchToken) error {
 	w.tags[token].handler = noOpChangeListener
 	t := true
-	return w.stream.Send(&wire.WatcherEventIn{
+	return w.stream.Send(&reswire.WatcherEventIn{
 		Tag:    uint64(token),
 		Delete: &t,
 	})

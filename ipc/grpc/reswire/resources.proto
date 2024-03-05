@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package wire;
-option go_package = "git.meschbach.com/mee/platform.git/plaid/internal/plaid/daemon/wire";
+option go_package = "git.meschbach.com/mee/platform.git/plaid/ipc/grpc/reswire";
 
 import "google/protobuf/timestamp.proto";
 

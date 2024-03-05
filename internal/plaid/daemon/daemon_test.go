@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/go-faker/faker/v4"
-	"github.com/meschbach/plaid/internal/plaid/daemon/wire"
+	"github.com/meschbach/plaid/ipc/grpc/reswire"
 	"github.com/meschbach/plaid/resources"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,7 +26,7 @@ func TestDaemonSetup(t *testing.T) {
 	listener := bufconn.Listen(buffer)
 
 	s := grpc.NewServer()
-	wire.RegisterResourceControllerServer(s, &ResourceService{
+	reswire.RegisterResourceControllerServer(s, &ResourceService{
 		client: plaid.Controller.Client(),
 	})
 	go func() {
@@ -41,24 +41,24 @@ func TestDaemonSetup(t *testing.T) {
 		return listener.Dial()
 	}), grpc.WithInsecure(), grpc.WithBlock())
 
-	client := wire.NewResourceControllerClient(conn)
+	client := reswire.NewResourceControllerClient(conn)
 	e := exampleEntity{Words: faker.Word()}
 	payload, err := json.Marshal(e)
 	require.NoError(t, err)
 
-	ref := &wire.Meta{
-		Kind: &wire.Type{
+	ref := &reswire.Meta{
+		Kind: &reswire.Type{
 			Kind:    faker.URL(),
 			Version: faker.Date(),
 		},
 		Name: faker.Word(),
 	}
-	_, err = client.Create(ctx, &wire.CreateResourceIn{
+	_, err = client.Create(ctx, &reswire.CreateResourceIn{
 		Target: ref,
 		Spec:   payload,
 	})
 	require.NoError(t, err)
-	out, err := client.Get(ctx, &wire.GetIn{Target: ref})
+	out, err := client.Get(ctx, &reswire.GetIn{Target: ref})
 	require.NoError(t, err)
 	if assert.True(t, out.Exists, "exists") {
 		assert.Equal(t, payload, out.Spec)
