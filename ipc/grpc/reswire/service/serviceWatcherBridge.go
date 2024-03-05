@@ -1,4 +1,4 @@
-package daemon
+package service
 
 import (
 	"context"
@@ -53,8 +53,8 @@ func (w *watcherBridge) consumeInput(ctx context.Context, e *reswire.WatcherEven
 		w.tokens[e.Tag] = token
 	}
 	if e.OnType != nil {
-		token, err := w.watcher.OnType(ctx, internalizeType(e.OnType), func(ctx context.Context, changed resources.ResourceChanged) error {
-			ref := metaToWire(changed.Which)
+		token, err := w.watcher.OnType(ctx, reswire.InternalizeKind(e.OnType), func(ctx context.Context, changed resources.ResourceChanged) error {
+			ref := reswire.MetaToWire(changed.Which)
 			return w.stream.Send(&reswire.WatcherEventOut{
 				Tag: e.Tag,
 				Ref: ref,

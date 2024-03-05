@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/meschbach/plaid/internal/plaid/daemon"
+	"github.com/meschbach/plaid/ipc/grpc/reswire/client"
 	"github.com/meschbach/plaid/resources"
 	"os"
 )
 
-func Perform(ctx context.Context, client *daemon.Daemon, options Options) error {
+func Perform(ctx context.Context, client *client.Daemon, options Options) error {
 	ref := resources.Meta{
 		Type: resources.Type{
 			Kind:    options.Kind,

@@ -10,6 +10,7 @@ import (
 
 type System struct {
 	t             *testing.T
+	s             resources.System
 	root          context.Context
 	Legacy        *resources.TestSubsystem
 	observer      resources.Watcher
@@ -53,7 +54,15 @@ func (s *System) ObserveType(ctx context.Context, kind resources.Type) *Observed
 }
 
 func (s *System) MustCreate(ctx context.Context, ref resources.Meta, spec any) {
-	require.NoError(s.t, s.Legacy.Store.Create(ctx, ref, spec))
+	storage, err := s.s.Storage(ctx)
+	require.NoError(s.t, err)
+	require.NoError(s.t, storage.Create(ctx, ref, spec))
+}
+
+func (s *System) MustDelete(ctx context.Context, ref resources.Meta) {
+	exists, err := s.Legacy.Store.Delete(ctx, ref)
+	require.NoError(s.t, err)
+	require.True(s.t, exists, "must have existed")
 }
 
 func New(t *testing.T) (context.Context, *System) {
@@ -64,6 +73,7 @@ func New(t *testing.T) (context.Context, *System) {
 	require.NoError(t, err)
 	sys := &System{
 		t:             t,
+		s:             legacy.System,
 		root:          ctx,
 		Legacy:        legacy,
 		observer:      systemObserver,
@@ -81,6 +91,7 @@ func From(t *testing.T, ctx context.Context, s resources.System) *System {
 
 	return &System{
 		t:             t,
+		s:             s,
 		root:          nil,
 		Legacy:        nil,
 		observer:      watcher,

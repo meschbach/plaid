@@ -1,10 +1,11 @@
-package daemon
+package sys
 
 import (
 	"context"
 	"encoding/json"
 	"github.com/go-faker/faker/v4"
 	"github.com/meschbach/plaid/ipc/grpc/reswire"
+	"github.com/meschbach/plaid/ipc/grpc/reswire/service"
 	"github.com/meschbach/plaid/resources"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,9 +27,7 @@ func TestDaemonSetup(t *testing.T) {
 	listener := bufconn.Listen(buffer)
 
 	s := grpc.NewServer()
-	reswire.RegisterResourceControllerServer(s, &ResourceService{
-		client: plaid.Controller.Client(),
-	})
+	reswire.RegisterResourceControllerServer(s, service.New(plaid.Controller.Client()))
 	go func() {
 		require.NoError(t, s.Serve(listener))
 	}()

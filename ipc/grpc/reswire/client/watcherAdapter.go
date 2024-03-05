@@ -1,4 +1,4 @@
-package daemon
+package client
 
 import (
 	"context"
@@ -53,8 +53,8 @@ func (w *watcherAdapter) Serve(ctx context.Context) error {
 }
 
 func (w *watcherAdapter) dispatch(serviceContext context.Context, e *reswire.WatcherEventOut) error {
-	operation := internalizeOperation(e.Op)
-	which := internalizeMeta(e.Ref)
+	operation := reswire.InternalizeOperation(e.Op)
+	which := reswire.InternalizeMeta(e.Ref)
 	ctx, span := tracer.Start(serviceContext, "wire/ClientWatcher.dispatch["+operation.String()+" of "+which.Type.String()+"]")
 	defer span.End()
 	span.SetAttributes(which.AsTraceAttribute("which")...)
@@ -83,7 +83,7 @@ func (w *watcherAdapter) dispatch(serviceContext context.Context, e *reswire.Wat
 
 func (w *watcherAdapter) OnType(ctx context.Context, kind resources.Type, consume resources.OnResourceChanged) (resources.WatchToken, error) {
 	tag := w.next.Add(1)
-	k := typeToWire(kind)
+	k := reswire.ExternalizeType(kind)
 	if err := w.stream.Send(&reswire.WatcherEventIn{
 		Tag:    uint64(tag),
 		OnType: k,
@@ -99,7 +99,7 @@ func (w *watcherAdapter) OnResource(parent context.Context, ref resources.Meta, 
 	_, span := tracer.Start(parent, "Watcher.OnResource")
 	defer span.End()
 	tag := w.next.Add(1)
-	wireRef := metaToWire(ref)
+	wireRef := reswire.MetaToWire(ref)
 	if err := w.stream.Send(&reswire.WatcherEventIn{
 		Tag:        uint64(tag),
 		OnResource: wireRef,

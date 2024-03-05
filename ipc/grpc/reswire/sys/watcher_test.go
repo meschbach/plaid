@@ -1,8 +1,10 @@
-package daemon
+package sys
 
 import (
 	"context"
 	"github.com/meschbach/plaid/ipc/grpc/reswire"
+	"github.com/meschbach/plaid/ipc/grpc/reswire/client"
+	"github.com/meschbach/plaid/ipc/grpc/reswire/service"
 	"github.com/meschbach/plaid/resources"
 	"github.com/meschbach/plaid/resources/optest"
 	"github.com/stretchr/testify/require"
@@ -17,9 +19,7 @@ func TestWatcher(t *testing.T) {
 	ctx, serviceSide := optest.New(t)
 
 	s := grpc.NewServer()
-	reswire.RegisterResourceControllerServer(s, &ResourceService{
-		client: serviceSide.Legacy.Controller.Client(),
-	})
+	reswire.RegisterResourceControllerServer(s, service.New(serviceSide.Legacy.Controller.Client()))
 
 	//setup server
 	buffer := 1024 * 1024
@@ -36,19 +36,10 @@ func TestWatcher(t *testing.T) {
 	conn, _ := grpc.DialContext(ctx, "", grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
 		return listener.Dial()
 	}), grpc.WithInsecure(), grpc.WithBlock())
-	wireClient := reswire.NewResourceControllerClient(conn)
-	storageSupervisor := suture.NewSimple("wire.storage")
-	serviceSide.Legacy.AttachController("wire.storage", storageSupervisor)
-	storageWrapper := NewWireClientAdapter(storageSupervisor, wireClient)
-	clientSide := optest.From(t, ctx, &daemonSystem{
-		d: &Daemon{
-			grpcLayer:   conn,
-			WireStorage: wireClient,
-			Storage:     storageWrapper,
-			LoggerV1:    nil,
-			Tree:        storageSupervisor,
-		},
-	})
+	clientSideTree := suture.NewSimple("wire.storage")
+	serviceSide.Legacy.AttachController("wire.storage", clientSideTree)
+	clientSystem := client.New(conn, clientSideTree)
+	clientSide := optest.From(t, ctx, clientSystem)
 
 	t.Run("Watch type", func(t *testing.T) {
 		exampleKind := resources.FakeType()
@@ -57,14 +48,14 @@ func TestWatcher(t *testing.T) {
 		ref := resources.FakeMetaOf(exampleKind)
 		t.Run("When creating a new resource", func(t *testing.T) {
 			create := observer.Create.Fork()
-			require.NoError(t, storageWrapper.Create(ctx, ref, exampleEntity{Words: "z"}))
+			clientSide.MustCreate(ctx, ref, exampleEntity{Words: "z"})
 
 			create.Wait(ctx)
 		})
 
 		t.Run("When the resource is deleted", func(t *testing.T) {
 			deleteOp := observer.Delete.Fork()
-			require.NoError(t, storageWrapper.Delete(ctx, ref))
+			serviceSide.MustDelete(ctx, ref)
 			deleteOp.Wait(ctx)
 		})
 	})

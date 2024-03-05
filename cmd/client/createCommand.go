@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"github.com/meschbach/go-junk-bucket/pkg/files"
 	"github.com/meschbach/plaid/client"
-	"github.com/meschbach/plaid/internal/plaid/daemon"
 	"github.com/meschbach/plaid/ipc/grpc/reswire"
+	client2 "github.com/meschbach/plaid/ipc/grpc/reswire/client"
 	"github.com/meschbach/plaid/resources"
 	"github.com/spf13/cobra"
 	"os"
@@ -25,7 +25,7 @@ func createCommand(rt *client.Runtime) *cobra.Command {
 		Use:   "create <manifest>",
 		Short: "Creates a manifest",
 		Args:  cobra.ExactArgs(1),
-		RunE: runCommand("delete", rt, func(ctx context.Context, rt *client.Runtime, client *daemon.Daemon, args []string) error {
+		RunE: runCommand("delete", rt, func(ctx context.Context, rt *client.Runtime, client *client2.Daemon, args []string) error {
 			fileName := args[0]
 			manifest := Manifest{}
 			if err := files.ParseJSONFile(fileName, &manifest); err != nil {

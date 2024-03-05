@@ -1,4 +1,4 @@
-package daemon
+package client
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/meschbach/plaid/ipc/grpc/logger"
 	"github.com/meschbach/plaid/ipc/grpc/reswire"
-	"github.com/meschbach/plaid/resources"
 	"github.com/thejerf/suture/v4"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
@@ -88,57 +87,4 @@ func DialClient(ctx context.Context, address string, parent *suture.Supervisor) 
 	return d, func() error {
 		return d.Disconnect()
 	}, nil
-}
-
-func typeToWire(t resources.Type) *reswire.Type {
-	return &reswire.Type{
-		Kind:    t.Kind,
-		Version: t.Version,
-	}
-}
-
-func metaToWire(ref resources.Meta) *reswire.Meta {
-	return &reswire.Meta{
-		Kind: typeToWire(ref.Type),
-		Name: ref.Name,
-	}
-}
-
-func externalizeEventLevel(l resources.EventLevel) reswire.EventLevel {
-	switch l {
-	case resources.AllEvents:
-		return reswire.EventLevel_All
-	case resources.Info:
-		return reswire.EventLevel_Info
-	case resources.Error:
-		return reswire.EventLevel_Error
-	default:
-		panic(fmt.Sprintf("unhandled translation from %d", l))
-	}
-}
-
-func internalizeEventLevel(l reswire.EventLevel) resources.EventLevel {
-	switch l {
-	case reswire.EventLevel_All:
-		return resources.AllEvents
-	case reswire.EventLevel_Error:
-		return resources.Error
-	case reswire.EventLevel_Info:
-		return resources.Info
-	default:
-		panic(fmt.Sprintf("unhandled translation from %d", l))
-	}
-}
-
-func internalizeOperation(op reswire.WatcherEventOut_Op) resources.ResourceChangedOperation {
-	switch op {
-	case reswire.WatcherEventOut_Created:
-		return resources.CreatedEvent
-	case reswire.WatcherEventOut_UpdatedStatus:
-		return resources.StatusUpdated
-	case reswire.WatcherEventOut_Deleted:
-		return resources.DeletedEvent
-	default:
-		panic(fmt.Sprintf("unknown value %q", op.String()))
-	}
 }

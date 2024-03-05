@@ -1,4 +1,4 @@
-package daemon
+package service
 
 import (
 	"context"
@@ -15,18 +15,18 @@ type ResourceService struct {
 }
 
 func (d *ResourceService) Create(ctx context.Context, w *reswire.CreateResourceIn) (*reswire.CreateResourceOut, error) {
-	err := d.client.CreateBytes(ctx, internalizeMeta(w.Target), w.Spec)
+	err := d.client.CreateBytes(ctx, reswire.InternalizeMeta(w.Target), w.Spec)
 	return &reswire.CreateResourceOut{}, err
 }
 
 func (d *ResourceService) Delete(ctx context.Context, w *reswire.DeleteResourceIn) (*reswire.DeleteResourceOut, error) {
-	target := internalizeMeta(w.Ref)
+	target := reswire.InternalizeMeta(w.Ref)
 	exists, err := d.client.Delete(ctx, target)
 	return &reswire.DeleteResourceOut{Success: exists}, err
 }
 
 func (d *ResourceService) Get(ctx context.Context, in *reswire.GetIn) (*reswire.GetOut, error) {
-	data, exists, err := d.client.GetBytes(ctx, internalizeMeta(in.Target))
+	data, exists, err := d.client.GetBytes(ctx, reswire.InternalizeMeta(in.Target))
 	return &reswire.GetOut{
 		Exists: exists,
 		Spec:   data,
@@ -34,7 +34,7 @@ func (d *ResourceService) Get(ctx context.Context, in *reswire.GetIn) (*reswire.
 }
 
 func (d *ResourceService) GetStatus(ctx context.Context, in *reswire.GetStatusIn) (*reswire.GetStatusOut, error) {
-	data, exists, err := d.client.GetStatusBytes(ctx, internalizeMeta(in.Target))
+	data, exists, err := d.client.GetStatusBytes(ctx, reswire.InternalizeMeta(in.Target))
 	return &reswire.GetStatusOut{
 		Exists: exists,
 		Status: data,
@@ -48,7 +48,7 @@ func (d *ResourceService) UpdateStatus(ctx context.Context, in *reswire.UpdateSt
 }
 
 func (d *ResourceService) GetEvents(ctx context.Context, in *reswire.GetEventsIn) (*reswire.GetEventsOut, error) {
-	events, exists, err := d.client.GetLogs(ctx, internalizeMeta(in.Ref), internalizeEventLevel(in.Level))
+	events, exists, err := d.client.GetLogs(ctx, internalizeMeta(in.Ref), reswire.InternalizeEventLevel(in.Level))
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func (d *ResourceService) GetEvents(ctx context.Context, in *reswire.GetEventsIn
 	for i, e := range events {
 		out.Events[i] = &reswire.Event{
 			When:     timestamppb.New(e.When),
-			Level:    externalizeEventLevel(e.Level),
+			Level:    reswire.ExternalizeEventLevel(e.Level),
 			Rendered: fmt.Sprintf(e.Format, e.Params...),
 		}
 	}
@@ -69,7 +69,7 @@ func (d *ResourceService) GetEvents(ctx context.Context, in *reswire.GetEventsIn
 
 func (d *ResourceService) Log(ctx context.Context, in *reswire.LogIn) (*reswire.LogOut, error) {
 	which := internalizeMeta(in.Ref)
-	level := internalizeEventLevel(in.Event.Level)
+	level := reswire.InternalizeEventLevel(in.Event.Level)
 	//when := in.Event.When.AsTime()
 	msg := in.Event.Rendered
 
@@ -81,7 +81,7 @@ func (d *ResourceService) Log(ctx context.Context, in *reswire.LogIn) (*reswire.
 }
 
 func (d *ResourceService) List(ctx context.Context, in *reswire.ListIn) (*reswire.ListOut, error) {
-	kind := internalizeType(in.Type)
+	kind := reswire.InternalizeKind(in.Type)
 	refs, err := d.client.List(ctx, kind)
 	if err != nil {
 		return nil, err
@@ -90,20 +90,14 @@ func (d *ResourceService) List(ctx context.Context, in *reswire.ListIn) (*reswir
 		Ref: make([]*reswire.Meta, len(refs)),
 	}
 	for i, r := range refs {
-		result.Ref[i] = metaToWire(r)
+		result.Ref[i] = reswire.MetaToWire(r)
 	}
 	return result, nil
 }
 
-func internalizeType(p *reswire.Type) resources.Type {
-	return resources.Type{
-		Kind:    p.Kind,
-		Version: p.Version,
-	}
-}
 func internalizeMeta(meta *reswire.Meta) resources.Meta {
 	return resources.Meta{
-		Type: internalizeType(meta.Kind),
+		Type: reswire.InternalizeKind(meta.Kind),
 		Name: meta.Name,
 	}
 }

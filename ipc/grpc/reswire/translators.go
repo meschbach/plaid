@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func TypeToWire(t resources.Type) *Type {
+func ExternalizeType(t resources.Type) *Type {
 	return &Type{
 		Kind:    t.Kind,
 		Version: t.Version,
@@ -16,8 +16,22 @@ func TypeToWire(t resources.Type) *Type {
 
 func MetaToWire(ref resources.Meta) *Meta {
 	return &Meta{
-		Kind: TypeToWire(ref.Type),
+		Kind: ExternalizeType(ref.Type),
 		Name: ref.Name,
+	}
+}
+
+func InternalizeKind(in *Type) resources.Type {
+	return resources.Type{
+		Kind:    in.Kind,
+		Version: in.Version,
+	}
+}
+
+func InternalizeMeta(in *Meta) resources.Meta {
+	return resources.Meta{
+		Type: InternalizeKind(in.Kind),
+		Name: in.Name,
 	}
 }
 
@@ -55,5 +69,18 @@ func Eventf(when time.Time, level resources.EventLevel, format string, args ...a
 		When:     wireWhen,
 		Level:    wireLevel,
 		Rendered: message,
+	}
+}
+
+func InternalizeOperation(op WatcherEventOut_Op) resources.ResourceChangedOperation {
+	switch op {
+	case WatcherEventOut_Created:
+		return resources.CreatedEvent
+	case WatcherEventOut_UpdatedStatus:
+		return resources.StatusUpdated
+	case WatcherEventOut_Deleted:
+		return resources.DeletedEvent
+	default:
+		panic(fmt.Sprintf("unknown value %q", op.String()))
 	}
 }

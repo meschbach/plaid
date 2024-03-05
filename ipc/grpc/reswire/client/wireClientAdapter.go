@@ -1,4 +1,4 @@
-package daemon
+package client
 
 import (
 	"context"
@@ -26,7 +26,7 @@ func (w *WireClientAdapter) Create(ctx context.Context, ref resources.Meta, spec
 		return err
 	}
 
-	wireRef := metaToWire(ref)
+	wireRef := reswire.MetaToWire(ref)
 	_, err = w.wire.Create(ctx, &reswire.CreateResourceIn{
 		Target: wireRef,
 		Spec:   bytes,
@@ -35,13 +35,13 @@ func (w *WireClientAdapter) Create(ctx context.Context, ref resources.Meta, spec
 }
 
 func (w *WireClientAdapter) Delete(ctx context.Context, ref resources.Meta) error {
-	wireRef := metaToWire(ref)
+	wireRef := reswire.MetaToWire(ref)
 	_, err := w.wire.Delete(ctx, &reswire.DeleteResourceIn{Ref: wireRef})
 	return err
 }
 
 func (w *WireClientAdapter) Get(ctx context.Context, ref resources.Meta, spec any) (bool, error) {
-	wireRef := metaToWire(ref)
+	wireRef := reswire.MetaToWire(ref)
 	out, err := w.wire.Get(ctx, &reswire.GetIn{
 		Target: wireRef,
 	})
@@ -56,7 +56,7 @@ func (w *WireClientAdapter) Get(ctx context.Context, ref resources.Meta, spec an
 }
 
 func (w *WireClientAdapter) GetStatus(ctx context.Context, ref resources.Meta, status any) (bool, error) {
-	wireRef := metaToWire(ref)
+	wireRef := reswire.MetaToWire(ref)
 	out, err := w.wire.GetStatus(ctx, &reswire.GetStatusIn{
 		Target: wireRef,
 	})
@@ -74,10 +74,10 @@ func (w *WireClientAdapter) GetStatus(ctx context.Context, ref resources.Meta, s
 }
 
 func (w *WireClientAdapter) GetEvents(ctx context.Context, ref resources.Meta, level resources.EventLevel) ([]resources.Event, error) {
-	wireRef := metaToWire(ref)
+	wireRef := reswire.MetaToWire(ref)
 	out, err := w.wire.GetEvents(ctx, &reswire.GetEventsIn{
 		Ref:   wireRef,
-		Level: externalizeEventLevel(level),
+		Level: reswire.ExternalizeEventLevel(level),
 	})
 	if err != nil {
 		return nil, err
@@ -90,7 +90,7 @@ func (w *WireClientAdapter) GetEvents(ctx context.Context, ref resources.Meta, l
 	for i, e := range out.Events {
 		internalized[i] = resources.Event{
 			When:   e.When.AsTime(),
-			Level:  internalizeEventLevel(e.Level),
+			Level:  reswire.InternalizeEventLevel(e.Level),
 			Format: e.Rendered,
 			Params: nil,
 		}
@@ -99,14 +99,14 @@ func (w *WireClientAdapter) GetEvents(ctx context.Context, ref resources.Meta, l
 }
 
 func (w *WireClientAdapter) List(ctx context.Context, kind resources.Type) ([]resources.Meta, error) {
-	wireKind := typeToWire(kind)
+	wireKind := reswire.ExternalizeType(kind)
 	out, err := w.wire.List(ctx, &reswire.ListIn{Type: wireKind})
 	if err != nil {
 		return nil, err
 	}
 	result := make([]resources.Meta, len(out.Ref))
 	for i, r := range out.Ref {
-		result[i] = internalizeMeta(r)
+		result[i] = reswire.InternalizeMeta(r)
 	}
 	return result, err
 }
