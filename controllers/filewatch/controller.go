@@ -2,26 +2,33 @@ package filewatch
 
 import (
 	"context"
+	"github.com/meschbach/plaid/controllers/tooling/kit"
 	"github.com/meschbach/plaid/resources"
-	"github.com/meschbach/plaid/resources/operator"
 )
 
 type Controller struct {
-	resources *resources.Controller
+	resources resources.System
 	watcher   FileSystem
 }
 
 func (c *Controller) Serve(ctx context.Context) error {
+	storage, err := c.resources.Storage(ctx)
+	if err != nil {
+		return err
+	}
+	storageWatcher, err := storage.Observer(ctx)
+	if err != nil {
+		return err
+	}
+	storageFeed := storageWatcher.Events()
+
 	rt := &runtimeState{
-		fs: c.watcher,
+		resources: storage,
+		fs:        c.watcher,
 	}
 
-	resourceClient := c.resources.Client()
-	rt.resources = resourceClient
-
-	a1Bridge := operator.NewKindBridge[Alpha1Spec, Alpha1Status, watch](Alpha1, &alpha1Interpreter{runtime: rt})
-	a1Watch, err := a1Bridge.Setup(ctx, resourceClient)
-	if err != nil {
+	bridge := kit.New[Alpha1Spec, Alpha1Status, watch](storage, storageWatcher, Alpha1, &alpha1Interpreter{runtime: rt})
+	if err := bridge.Setup(ctx); err != nil {
 		return err
 	}
 	fsChangeFeed := c.watcher.ChangeFeed()
@@ -32,8 +39,8 @@ func (c *Controller) Serve(ctx context.Context) error {
 			if err := rt.consumeFSEvent(ctx, event); err != nil {
 				return err
 			}
-		case v1Change := <-a1Watch:
-			if err := a1Bridge.Dispatch(ctx, resourceClient, v1Change); err != nil {
+		case v1Change := <-storageFeed:
+			if err := storageWatcher.Digest(ctx, v1Change); err != nil {
 				return err
 			}
 		case <-ctx.Done():
@@ -42,6 +49,6 @@ func (c *Controller) Serve(ctx context.Context) error {
 	}
 }
 
-func NewController(r *resources.Controller, watcher FileSystem) *Controller {
+func NewController(r resources.System, watcher FileSystem) *Controller {
 	return &Controller{resources: r, watcher: watcher}
 }

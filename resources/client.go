@@ -204,6 +204,11 @@ func (c *Client) Watcher(ctx context.Context) (*ClientWatcher, error) {
 	}
 }
 
+func (c *Client) Observer(ctx context.Context) (Watcher, error) {
+	o, err := c.Watcher(ctx)
+	return o, err
+}
+
 func (c *Client) List(parent context.Context, kind Type) ([]Meta, error) {
 	ctx, span := tracing.Start(parent, "resources.List "+kind.String())
 	defer span.End()

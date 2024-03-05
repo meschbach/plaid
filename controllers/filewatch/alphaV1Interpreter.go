@@ -3,8 +3,8 @@ package filewatch
 import (
 	"context"
 	"errors"
+	"github.com/meschbach/plaid/controllers/tooling/kit"
 	"github.com/meschbach/plaid/resources"
-	"github.com/meschbach/plaid/resources/operator"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"path/filepath"
@@ -14,7 +14,7 @@ type alpha1Interpreter struct {
 	runtime *runtimeState
 }
 
-func (a *alpha1Interpreter) Create(parent context.Context, which resources.Meta, spec Alpha1Spec, bridge *operator.KindBridgeState) (*watch, Alpha1Status, error) {
+func (a *alpha1Interpreter) Create(parent context.Context, which resources.Meta, spec Alpha1Spec, bridge kit.Manager) (*watch, error) {
 	ctx, span := tracing.Start(parent, "fileWatch/alphaV1.Create", trace.WithAttributes(attribute.Stringer("which", which)))
 	defer span.End()
 
@@ -25,7 +25,7 @@ func (a *alpha1Interpreter) Create(parent context.Context, which resources.Meta,
 	}
 	if len(spec.AbsolutePath) == 0 {
 		_, err := a.runtime.resources.Log(ctx, which, resources.Error, "empty absolute Path")
-		return nil, w.asStatus(), err
+		return nil, err
 	}
 	var err error
 	if filepath.IsAbs(spec.AbsolutePath) {
@@ -33,20 +33,24 @@ func (a *alpha1Interpreter) Create(parent context.Context, which resources.Meta,
 	} else {
 		_, err = a.runtime.resources.Log(ctx, which, resources.Error, "Path %q is not absolute", spec.AbsolutePath)
 	}
-	return w, w.asStatus(), err
+	return w, err
 }
 
-func (a *alpha1Interpreter) Update(parent context.Context, which resources.Meta, rt *watch, s Alpha1Spec) (Alpha1Status, error) {
+func (a *alpha1Interpreter) Update(parent context.Context, which resources.Meta, rt *watch, s Alpha1Spec) error {
 	_, span := tracing.Start(parent, "fileWatch/alpha1Interpreter.Update", trace.WithAttributes(attribute.Stringer("which", which)))
 	defer span.End()
 
 	if rt.base == s.AbsolutePath {
-		return rt.asStatus(), nil
+		return nil
 	}
 
-	return Alpha1Status{}, errors.New("todo -- change chase")
+	return errors.New("todo -- change chase")
 }
 
 func (a *alpha1Interpreter) Delete(ctx context.Context, which resources.Meta, rt *watch) error {
 	return a.runtime.unregisterWatch(ctx, rt.base, rt)
+}
+
+func (a *alpha1Interpreter) Status(ctx context.Context, rt *watch) Alpha1Status {
+	return rt.asStatus()
 }

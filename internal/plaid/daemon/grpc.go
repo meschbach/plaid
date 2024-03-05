@@ -24,10 +24,11 @@ func (u *UnableToConnect) Error() string {
 }
 
 type Daemon struct {
-	grpcLayer *grpc.ClientConn
-	Storage   Client
-	LoggerV1  logger.V1Client
-	Tree      *suture.Supervisor
+	grpcLayer   *grpc.ClientConn
+	WireStorage wire.ResourceControllerClient
+	Storage     Client
+	LoggerV1    logger.V1Client
+	Tree        *suture.Supervisor
 }
 
 func (d *Daemon) Disconnect() error {
@@ -78,10 +79,11 @@ func DialClient(ctx context.Context, address string, parent *suture.Supervisor) 
 	resourceAdapter := NewWireClientAdapter(parent, wireClient)
 	loggerV1Endpoint := logger.NewV1Client(conn)
 	d := &Daemon{
-		grpcLayer: conn,
-		Storage:   resourceAdapter,
-		LoggerV1:  loggerV1Endpoint,
-		Tree:      parent,
+		grpcLayer:   conn,
+		WireStorage: wireClient,
+		Storage:     resourceAdapter,
+		LoggerV1:    loggerV1Endpoint,
+		Tree:        parent,
 	}
 	return d, func() error {
 		return d.Disconnect()

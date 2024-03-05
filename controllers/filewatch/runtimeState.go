@@ -12,7 +12,7 @@ import (
 
 // runtimeState is runtime data specific to a specific Controller instance.
 type runtimeState struct {
-	resources *resources.Client
+	resources resources.Storage
 	fs        FileSystem
 	watchers  []*watch
 }

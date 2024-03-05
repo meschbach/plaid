@@ -14,6 +14,7 @@ type TestSubsystem struct {
 	//Logger is deprecated.  Originally used for logging output of controllers and resources.
 	Logger   chan<- string
 	treeRoot *suture.Supervisor
+	System   System
 }
 
 func (t *TestSubsystem) AttachController(name string, s suture.Service) {
@@ -63,5 +64,16 @@ func WithTestSubsystem(t *testing.T, parentContext context.Context) *TestSubsyst
 		},
 		Logger:   msg,
 		treeRoot: root,
+		System: &directSystem{
+			storeController,
+		},
 	}
+}
+
+type directSystem struct {
+	controller *Controller
+}
+
+func (d *directSystem) Storage(ctx context.Context) (Storage, error) {
+	return d.controller.Client(), nil
 }
