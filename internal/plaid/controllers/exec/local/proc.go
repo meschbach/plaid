@@ -3,6 +3,7 @@ package local
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/meschbach/go-junk-bucket/pkg/streams"
 	"github.com/meschbach/go-junk-bucket/sub"
 	exec2 "github.com/meschbach/plaid/internal/plaid/controllers/exec"
@@ -13,6 +14,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -66,6 +68,16 @@ func (p *proc) Serve(parent context.Context) error {
 			span.SetStatus(codes.Error, "failed to terminate process group")
 			span.RecordError(err)
 		}
+		t := time.NewTimer(30 * time.Second)
+		select {
+		case <-t.C:
+			_, err := fmt.Fprintf(os.Stderr, "WWW\t\tProcess %#v failed to shutdown within 30 seconds.  Leaking\n", cmd)
+			if err != nil {
+				panic(err)
+			}
+		case <-done:
+			return
+		}
 	}()
 
 	if err := p.startProcess(ctx, cmd, stdout, procStdout, stderr, procStderr, done); err != nil {
@@ -112,6 +124,7 @@ func (p *proc) startProcess(parent context.Context, cmd *sub.Subcommand, stdout 
 		return &labeledError{doing: "starting update", underlying: err}
 	}
 
+	// todo: feels wrong to launch a goproc here
 	go func() {
 		err := cmd.Run(stdout, stderr)
 		done <- err
@@ -122,6 +135,7 @@ func (p *proc) startProcess(parent context.Context, cmd *sub.Subcommand, stdout 
 func (p *proc) noteStartTime() {
 	p.control.Lock()
 	defer p.control.Unlock()
+
 	now := time.Now()
 	p.started = &now
 }
