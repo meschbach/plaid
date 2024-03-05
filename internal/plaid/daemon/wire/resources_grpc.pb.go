@@ -22,7 +22,9 @@ type ResourceControllerClient interface {
 	Delete(ctx context.Context, in *DeleteResourceIn, opts ...grpc.CallOption) (*DeleteResourceOut, error)
 	Get(ctx context.Context, in *GetIn, opts ...grpc.CallOption) (*GetOut, error)
 	GetStatus(ctx context.Context, in *GetStatusIn, opts ...grpc.CallOption) (*GetStatusOut, error)
+	UpdateStatus(ctx context.Context, in *UpdateStatusIn, opts ...grpc.CallOption) (*UpdateStatusOut, error)
 	GetEvents(ctx context.Context, in *GetEventsIn, opts ...grpc.CallOption) (*GetEventsOut, error)
+	Log(ctx context.Context, in *LogIn, opts ...grpc.CallOption) (*LogOut, error)
 	Watcher(ctx context.Context, opts ...grpc.CallOption) (ResourceController_WatcherClient, error)
 	List(ctx context.Context, in *ListIn, opts ...grpc.CallOption) (*ListOut, error)
 }
@@ -71,9 +73,27 @@ func (c *resourceControllerClient) GetStatus(ctx context.Context, in *GetStatusI
 	return out, nil
 }
 
+func (c *resourceControllerClient) UpdateStatus(ctx context.Context, in *UpdateStatusIn, opts ...grpc.CallOption) (*UpdateStatusOut, error) {
+	out := new(UpdateStatusOut)
+	err := c.cc.Invoke(ctx, "/wire.ResourceController/UpdateStatus", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *resourceControllerClient) GetEvents(ctx context.Context, in *GetEventsIn, opts ...grpc.CallOption) (*GetEventsOut, error) {
 	out := new(GetEventsOut)
 	err := c.cc.Invoke(ctx, "/wire.ResourceController/GetEvents", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *resourceControllerClient) Log(ctx context.Context, in *LogIn, opts ...grpc.CallOption) (*LogOut, error) {
+	out := new(LogOut)
+	err := c.cc.Invoke(ctx, "/wire.ResourceController/Log", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +148,9 @@ type ResourceControllerServer interface {
 	Delete(context.Context, *DeleteResourceIn) (*DeleteResourceOut, error)
 	Get(context.Context, *GetIn) (*GetOut, error)
 	GetStatus(context.Context, *GetStatusIn) (*GetStatusOut, error)
+	UpdateStatus(context.Context, *UpdateStatusIn) (*UpdateStatusOut, error)
 	GetEvents(context.Context, *GetEventsIn) (*GetEventsOut, error)
+	Log(context.Context, *LogIn) (*LogOut, error)
 	Watcher(ResourceController_WatcherServer) error
 	List(context.Context, *ListIn) (*ListOut, error)
 	mustEmbedUnimplementedResourceControllerServer()
@@ -150,8 +172,14 @@ func (UnimplementedResourceControllerServer) Get(context.Context, *GetIn) (*GetO
 func (UnimplementedResourceControllerServer) GetStatus(context.Context, *GetStatusIn) (*GetStatusOut, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetStatus not implemented")
 }
+func (UnimplementedResourceControllerServer) UpdateStatus(context.Context, *UpdateStatusIn) (*UpdateStatusOut, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateStatus not implemented")
+}
 func (UnimplementedResourceControllerServer) GetEvents(context.Context, *GetEventsIn) (*GetEventsOut, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetEvents not implemented")
+}
+func (UnimplementedResourceControllerServer) Log(context.Context, *LogIn) (*LogOut, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Log not implemented")
 }
 func (UnimplementedResourceControllerServer) Watcher(ResourceController_WatcherServer) error {
 	return status.Errorf(codes.Unimplemented, "method Watcher not implemented")
@@ -244,6 +272,24 @@ func _ResourceController_GetStatus_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ResourceController_UpdateStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateStatusIn)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ResourceControllerServer).UpdateStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/wire.ResourceController/UpdateStatus",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ResourceControllerServer).UpdateStatus(ctx, req.(*UpdateStatusIn))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ResourceController_GetEvents_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetEventsIn)
 	if err := dec(in); err != nil {
@@ -258,6 +304,24 @@ func _ResourceController_GetEvents_Handler(srv interface{}, ctx context.Context,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ResourceControllerServer).GetEvents(ctx, req.(*GetEventsIn))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ResourceController_Log_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LogIn)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ResourceControllerServer).Log(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/wire.ResourceController/Log",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ResourceControllerServer).Log(ctx, req.(*LogIn))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -330,8 +394,16 @@ var ResourceController_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ResourceController_GetStatus_Handler,
 		},
 		{
+			MethodName: "UpdateStatus",
+			Handler:    _ResourceController_UpdateStatus_Handler,
+		},
+		{
 			MethodName: "GetEvents",
 			Handler:    _ResourceController_GetEvents_Handler,
+		},
+		{
+			MethodName: "Log",
+			Handler:    _ResourceController_Log_Handler,
 		},
 		{
 			MethodName: "List",
