@@ -15,7 +15,15 @@ import (
 	"testing"
 )
 
-func TestWatcher(t *testing.T) {
+type exampleEntity struct {
+	Words string `json:"words"`
+}
+
+type exampleStatus struct {
+	Response string `json:"response"`
+}
+
+func TestSystem(t *testing.T) {
 	ctx, serviceSide := optest.New(t)
 
 	s := grpc.NewServer()
@@ -46,11 +54,24 @@ func TestWatcher(t *testing.T) {
 		observer := clientSide.ObserveType(ctx, exampleKind)
 
 		ref := resources.FakeMetaOf(exampleKind)
+		entityStatus := exampleEntity{Words: "z"}
 		t.Run("When creating a new resource", func(t *testing.T) {
+			//anyEvent := observer.AnyEvent.Fork()
 			create := observer.Create.Fork()
-			clientSide.MustCreate(ctx, ref, exampleEntity{Words: "z"})
+			clientSide.MustCreate(ctx, ref, entityStatus)
 
+			//anyEvent.Wait(ctx)
 			create.Wait(ctx)
+		})
+
+		t.Run("When updating status of an exiting resource", func(t *testing.T) {
+			status := exampleStatus{Response: "destroyed systems"}
+			anyChange := observer.AnyEvent.Fork()
+			statusChange := observer.UpdateStatus.Fork()
+			clientSide.MustUpdateStatus(ctx, ref, status)
+
+			anyChange.Wait(ctx)
+			statusChange.Wait(ctx)
 		})
 
 		t.Run("When the resource is deleted", func(t *testing.T) {

@@ -9,11 +9,13 @@ import (
 
 // todo: a lot of the aspect things could probably be reused/DRYed
 type ObservedType struct {
-	system   *System
-	token    resources.WatchToken
-	AnyEvent *TypeAspect
-	Create   *TypeAspect
-	Delete   *TypeAspect
+	system       *System
+	token        resources.WatchToken
+	AnyEvent     *TypeAspect
+	Create       *TypeAspect
+	Delete       *TypeAspect
+	Update       *TypeAspect
+	UpdateStatus *TypeAspect
 }
 
 func (o *ObservedType) onResourceEvent(ctx context.Context, event resources.ResourceChanged) error {
@@ -23,8 +25,12 @@ func (o *ObservedType) onResourceEvent(ctx context.Context, event resources.Reso
 		o.Create.update()
 	case resources.DeletedEvent:
 		o.Delete.update()
+	case resources.UpdatedEvent:
+		o.Update.update()
+	case resources.StatusUpdated:
+		o.UpdateStatus.update()
 	default:
-		fmt.Println("unknown event")
+		panic(fmt.Sprintf("Unknown event type %s", event.Operation))
 	}
 	return nil
 }

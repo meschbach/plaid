@@ -43,6 +43,8 @@ func (s *System) ObserveType(ctx context.Context, kind resources.Type) *Observed
 		o.AnyEvent = &TypeAspect{observer: o}
 		o.Create = &TypeAspect{observer: o}
 		o.Delete = &TypeAspect{observer: o}
+		o.Update = &TypeAspect{observer: o}
+		o.UpdateStatus = &TypeAspect{observer: o}
 		return o
 	})
 	if created {
@@ -60,9 +62,19 @@ func (s *System) MustCreate(ctx context.Context, ref resources.Meta, spec any) {
 }
 
 func (s *System) MustDelete(ctx context.Context, ref resources.Meta) {
-	exists, err := s.Legacy.Store.Delete(ctx, ref)
+	storage, err := s.s.Storage(ctx)
+	require.NoError(s.t, err)
+	exists, err := storage.Delete(ctx, ref)
 	require.NoError(s.t, err)
 	require.True(s.t, exists, "must have existed")
+}
+
+func (s *System) MustUpdateStatus(ctx context.Context, ref resources.Meta, status interface{}) {
+	storage, err := s.s.Storage(ctx)
+	require.NoError(s.t, err)
+	exists, err := storage.UpdateStatus(ctx, ref, status)
+	require.NoError(s.t, err)
+	require.True(s.t, exists, "expected to exist but did not")
 }
 
 func New(t *testing.T) (context.Context, *System) {

@@ -14,7 +14,7 @@ type daemonDispatch struct {
 type daemonWatcher struct {
 	underlyingWatcher Watcher
 	feed              chan resources.ResourceChanged
-	//dumb but works until I figured out a better API
+	//todo: feed really needs an opaque type
 	realFeed chan daemonDispatch
 }
 
@@ -40,8 +40,13 @@ func (g *daemonWatcher) Events() chan resources.ResourceChanged {
 
 func (g *daemonWatcher) Digest(ctx context.Context, event resources.ResourceChanged) error {
 	//slippery slope, I know!
-	dispatch := <-g.realFeed
-	return dispatch.consume(ctx, dispatch.event)
+	select {
+	case dispatch := <-g.realFeed:
+		err := dispatch.consume(ctx, dispatch.event)
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func (g *daemonWatcher) pushOnQueue(consume resources.OnResourceChanged) resources.OnResourceChanged {
@@ -49,12 +54,16 @@ func (g *daemonWatcher) pushOnQueue(consume resources.OnResourceChanged) resourc
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case g.feed <- changed:
-			g.realFeed <- daemonDispatch{
-				consume: consume,
-				event:   changed,
+		case g.realFeed <- daemonDispatch{
+			consume: consume,
+			event:   changed,
+		}:
+			select {
+			case g.feed <- changed:
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
 			}
-			return nil
 		}
 	}
 }

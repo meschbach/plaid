@@ -33,7 +33,7 @@ func (g *daemonStorage) Get(ctx context.Context, ref resources.Meta, spec any) (
 	return g.client.Get(ctx, ref, spec)
 }
 
-func (g daemonStorage) GetStatus(ctx context.Context, ref resources.Meta, status any) (bool, error) {
+func (g *daemonStorage) GetStatus(ctx context.Context, ref resources.Meta, status any) (bool, error) {
 	return g.client.GetStatus(ctx, ref, status)
 }
 
@@ -53,9 +53,9 @@ func (g *daemonStorage) UpdateStatus(ctx context.Context, ref resources.Meta, st
 	return out.Exists, err
 }
 
-func (g daemonStorage) GetEvents(ctx context.Context, ref resources.Meta, level resources.EventLevel) ([]resources.Event, bool, error) {
-	//TODO implement me
-	panic("implement me")
+func (g *daemonStorage) GetEvents(ctx context.Context, ref resources.Meta, level resources.EventLevel) ([]resources.Event, bool, error) {
+	events, err := g.client.GetEvents(ctx, ref, level)
+	return events, true, err
 }
 
 func (g *daemonStorage) Log(ctx context.Context, ref resources.Meta, level resources.EventLevel, fmt string, args ...any) (bool, error) {
@@ -82,5 +82,10 @@ func (g *daemonStorage) Observer(ctx context.Context) (resources.Watcher, error)
 		return nil, err
 	}
 	c := make(chan resources.ResourceChanged, 10)
-	return &daemonWatcher{w, c, make(chan daemonDispatch, 10)}, nil
+	realFeed := make(chan daemonDispatch, 10)
+	return &daemonWatcher{
+		underlyingWatcher: w,
+		feed:              c,
+		realFeed:          realFeed,
+	}, nil
 }

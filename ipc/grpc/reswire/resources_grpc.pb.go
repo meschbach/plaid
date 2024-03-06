@@ -39,7 +39,7 @@ func NewResourceControllerClient(cc grpc.ClientConnInterface) ResourceController
 
 func (c *resourceControllerClient) Create(ctx context.Context, in *CreateResourceIn, opts ...grpc.CallOption) (*CreateResourceOut, error) {
 	out := new(CreateResourceOut)
-	err := c.cc.Invoke(ctx, "/wire.ResourceController/Create", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/reswire.ResourceController/Create", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +48,7 @@ func (c *resourceControllerClient) Create(ctx context.Context, in *CreateResourc
 
 func (c *resourceControllerClient) Delete(ctx context.Context, in *DeleteResourceIn, opts ...grpc.CallOption) (*DeleteResourceOut, error) {
 	out := new(DeleteResourceOut)
-	err := c.cc.Invoke(ctx, "/wire.ResourceController/Delete", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/reswire.ResourceController/Delete", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func (c *resourceControllerClient) Delete(ctx context.Context, in *DeleteResourc
 
 func (c *resourceControllerClient) Get(ctx context.Context, in *GetIn, opts ...grpc.CallOption) (*GetOut, error) {
 	out := new(GetOut)
-	err := c.cc.Invoke(ctx, "/wire.ResourceController/Get", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/reswire.ResourceController/Get", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func (c *resourceControllerClient) Get(ctx context.Context, in *GetIn, opts ...g
 
 func (c *resourceControllerClient) GetStatus(ctx context.Context, in *GetStatusIn, opts ...grpc.CallOption) (*GetStatusOut, error) {
 	out := new(GetStatusOut)
-	err := c.cc.Invoke(ctx, "/wire.ResourceController/GetStatus", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/reswire.ResourceController/GetStatus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func (c *resourceControllerClient) GetStatus(ctx context.Context, in *GetStatusI
 
 func (c *resourceControllerClient) UpdateStatus(ctx context.Context, in *UpdateStatusIn, opts ...grpc.CallOption) (*UpdateStatusOut, error) {
 	out := new(UpdateStatusOut)
-	err := c.cc.Invoke(ctx, "/wire.ResourceController/UpdateStatus", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/reswire.ResourceController/UpdateStatus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +84,7 @@ func (c *resourceControllerClient) UpdateStatus(ctx context.Context, in *UpdateS
 
 func (c *resourceControllerClient) GetEvents(ctx context.Context, in *GetEventsIn, opts ...grpc.CallOption) (*GetEventsOut, error) {
 	out := new(GetEventsOut)
-	err := c.cc.Invoke(ctx, "/wire.ResourceController/GetEvents", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/reswire.ResourceController/GetEvents", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func (c *resourceControllerClient) GetEvents(ctx context.Context, in *GetEventsI
 
 func (c *resourceControllerClient) Log(ctx context.Context, in *LogIn, opts ...grpc.CallOption) (*LogOut, error) {
 	out := new(LogOut)
-	err := c.cc.Invoke(ctx, "/wire.ResourceController/Log", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/reswire.ResourceController/Log", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func (c *resourceControllerClient) Log(ctx context.Context, in *LogIn, opts ...g
 }
 
 func (c *resourceControllerClient) Watcher(ctx context.Context, opts ...grpc.CallOption) (ResourceController_WatcherClient, error) {
-	stream, err := c.cc.NewStream(ctx, &ResourceController_ServiceDesc.Streams[0], "/wire.ResourceController/Watcher", opts...)
+	stream, err := c.cc.NewStream(ctx, &ResourceController_ServiceDesc.Streams[0], "/reswire.ResourceController/Watcher", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (x *resourceControllerWatcherClient) Recv() (*WatcherEventOut, error) {
 
 func (c *resourceControllerClient) List(ctx context.Context, in *ListIn, opts ...grpc.CallOption) (*ListOut, error) {
 	out := new(ListOut)
-	err := c.cc.Invoke(ctx, "/wire.ResourceController/List", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/reswire.ResourceController/List", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +210,7 @@ func _ResourceController_Create_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/wire.ResourceController/Create",
+		FullMethod: "/reswire.ResourceController/Create",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ResourceControllerServer).Create(ctx, req.(*CreateResourceIn))
@@ -228,7 +228,7 @@ func _ResourceController_Delete_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/wire.ResourceController/Delete",
+		FullMethod: "/reswire.ResourceController/Delete",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ResourceControllerServer).Delete(ctx, req.(*DeleteResourceIn))
@@ -246,7 +246,7 @@ func _ResourceController_Get_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/wire.ResourceController/Get",
+		FullMethod: "/reswire.ResourceController/Get",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ResourceControllerServer).Get(ctx, req.(*GetIn))
@@ -264,7 +264,7 @@ func _ResourceController_GetStatus_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/wire.ResourceController/GetStatus",
+		FullMethod: "/reswire.ResourceController/GetStatus",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ResourceControllerServer).GetStatus(ctx, req.(*GetStatusIn))
@@ -282,7 +282,7 @@ func _ResourceController_UpdateStatus_Handler(srv interface{}, ctx context.Conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/wire.ResourceController/UpdateStatus",
+		FullMethod: "/reswire.ResourceController/UpdateStatus",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ResourceControllerServer).UpdateStatus(ctx, req.(*UpdateStatusIn))
@@ -300,7 +300,7 @@ func _ResourceController_GetEvents_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/wire.ResourceController/GetEvents",
+		FullMethod: "/reswire.ResourceController/GetEvents",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ResourceControllerServer).GetEvents(ctx, req.(*GetEventsIn))
@@ -318,7 +318,7 @@ func _ResourceController_Log_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/wire.ResourceController/Log",
+		FullMethod: "/reswire.ResourceController/Log",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ResourceControllerServer).Log(ctx, req.(*LogIn))
@@ -362,7 +362,7 @@ func _ResourceController_List_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/wire.ResourceController/List",
+		FullMethod: "/reswire.ResourceController/List",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ResourceControllerServer).List(ctx, req.(*ListIn))
@@ -374,7 +374,7 @@ func _ResourceController_List_Handler(srv interface{}, ctx context.Context, dec 
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var ResourceController_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "wire.ResourceController",
+	ServiceName: "reswire.ResourceController",
 	HandlerType: (*ResourceControllerServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

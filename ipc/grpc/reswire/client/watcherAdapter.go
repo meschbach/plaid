@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/meschbach/plaid/ipc/grpc/reswire"
 	"github.com/meschbach/plaid/resources"
 	"github.com/thejerf/suture/v4"
@@ -53,6 +54,14 @@ func (w *watcherAdapter) Serve(ctx context.Context) error {
 }
 
 func (w *watcherAdapter) dispatch(serviceContext context.Context, e *reswire.WatcherEventOut) error {
+	if e == nil {
+		fmt.Printf("WARNING: nil event\n")
+		return nil
+	}
+	if e.Ref == nil {
+		fmt.Printf("WARNING: nil on ref for %#v\n", e)
+		return nil
+	}
 	operation := reswire.InternalizeOperation(e.Op)
 	which := reswire.InternalizeMeta(e.Ref)
 	ctx, span := tracer.Start(serviceContext, "wire/ClientWatcher.dispatch["+operation.String()+" of "+which.Type.String()+"]")
