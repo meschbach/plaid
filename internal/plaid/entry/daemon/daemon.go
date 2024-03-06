@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/meschbach/go-junk-bucket/pkg/observability"
-	"github.com/meschbach/plaid/internal/plaid/daemon"
 	"github.com/meschbach/plaid/internal/plaid/ephemeral"
+	"github.com/meschbach/plaid/ipc/grpc/reswire/service"
 	"github.com/meschbach/plaid/resources"
 	"github.com/thejerf/suture/v4"
 	"time"
@@ -69,7 +69,7 @@ func (d *daemonApp) Serve(ctx context.Context) error {
 
 	grpcEndpoint := suture.NewSimple("grpc-endpoint")
 	d.Add(grpcEndpoint)
-	grpcEndpoint.Add(&daemon.GRPCService{
+	grpcEndpoint.Add(&service.GRPCService{
 		Resources:     registry,
 		Tree:          grpcEndpoint,
 		LoggingConfig: bundled,

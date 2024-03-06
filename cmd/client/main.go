@@ -7,9 +7,9 @@ import (
 	"github.com/meschbach/go-junk-bucket/pkg/observability"
 	"github.com/meschbach/plaid/client"
 	"github.com/meschbach/plaid/client/get"
-	"github.com/meschbach/plaid/internal/plaid/daemon"
 	"github.com/meschbach/plaid/internal/plaid/entry/client/usecase"
 	"github.com/meschbach/plaid/internal/plaid/ephemeral"
+	client2 "github.com/meschbach/plaid/ipc/grpc/reswire/client"
 	"github.com/meschbach/plaid/resources"
 	"github.com/spf13/cobra"
 	"github.com/thejerf/suture/v4"
@@ -41,6 +41,7 @@ func main() {
 	rootCmd.AddCommand(getCommand(rt))
 	rootCmd.AddCommand(listCommand(rt))
 	rootCmd.AddCommand(upCommand(rt))
+	rootCmd.AddCommand(createCommand(rt))
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(-1)
@@ -53,7 +54,7 @@ func listCommand(rt *client.Runtime) *cobra.Command {
 		Use:   "list <kind> <version>",
 		Short: "lists resources",
 		Args:  cobra.ExactArgs(2),
-		RunE: runCommand("list", rt, func(ctx context.Context, rt *client.Runtime, client *daemon.Daemon, args []string) error {
+		RunE: runCommand("list", rt, func(ctx context.Context, rt *client.Runtime, client *client2.Daemon, args []string) error {
 			matching, err := client.Storage.List(ctx, resources.Type{
 				Kind:    args[0],
 				Version: args[1],
@@ -75,7 +76,7 @@ func upCommand(rt *client.Runtime) *cobra.Command {
 		Use:   "up",
 		Short: "launches a manifest and waits for it to be 'complete'",
 		Args:  cobra.ExactArgs(0),
-		RunE: runCommand("up", rt, func(ctx context.Context, rt *client.Runtime, client *daemon.Daemon, args []string) error {
+		RunE: runCommand("up", rt, func(ctx context.Context, rt *client.Runtime, client *client2.Daemon, args []string) error {
 			return usecase.Up(ctx, client, rt, opt)
 		}),
 	}
@@ -90,7 +91,7 @@ func getCommand(rt *client.Runtime) *cobra.Command {
 		Use:   "get <kind> <version> <name>",
 		Short: "Retrieves a resource",
 		Args:  cobra.ExactArgs(3),
-		RunE: runCommand("get", rt, func(ctx context.Context, rt *client.Runtime, client *daemon.Daemon, args []string) error {
+		RunE: runCommand("get", rt, func(ctx context.Context, rt *client.Runtime, client *client2.Daemon, args []string) error {
 			opts.Kind = args[0]
 			opts.Version = args[1]
 			opts.Resource = args[2]
@@ -102,7 +103,7 @@ func getCommand(rt *client.Runtime) *cobra.Command {
 	return cmd
 }
 
-func runCommand(op string, rt *client.Runtime, fn func(ctx context.Context, rt *client.Runtime, d *daemon.Daemon, args []string) error) func(*cobra.Command, []string) error {
+func runCommand(op string, rt *client.Runtime, fn func(ctx context.Context, rt *client.Runtime, d *client2.Daemon, args []string) error) func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		ctx, done := context.WithCancel(cmd.Context())
 		defer done()
@@ -124,7 +125,7 @@ func runCommand(op string, rt *client.Runtime, fn func(ctx context.Context, rt *
 		tree := suture.NewSimple("app")
 		app := &clientEnv{
 			op: op,
-			perform: func(ctx context.Context, rt *client.Runtime, client *daemon.Daemon) error {
+			perform: func(ctx context.Context, rt *client.Runtime, client *client2.Daemon) error {
 				return fn(ctx, rt, client, args)
 			},
 			pool: tree,
@@ -141,7 +142,7 @@ func runCommand(op string, rt *client.Runtime, fn func(ctx context.Context, rt *
 	}
 }
 
-type OnConnected func(ctx context.Context, rt *client.Runtime, daemon *daemon.Daemon) error
+type OnConnected func(ctx context.Context, rt *client.Runtime, daemon *client2.Daemon) error
 type clientEnv struct {
 	op      string
 	pool    *suture.Supervisor
@@ -155,7 +156,7 @@ func (c *clientEnv) Serve(serviceContext context.Context) error {
 	defer span.End()
 	socketPath := ephemeral.ResolvePlaidSocketPath()
 
-	client, clientDone, err := daemon.DialClient(ctx, socketPath, c.pool)
+	client, clientDone, err := client2.DialClient(ctx, socketPath, c.pool)
 	if err != nil {
 		return err
 	}

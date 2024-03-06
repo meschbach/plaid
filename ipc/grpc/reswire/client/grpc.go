@@ -1,12 +1,11 @@
-package daemon
+package client
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/meschbach/plaid/internal/plaid/daemon/wire"
 	"github.com/meschbach/plaid/ipc/grpc/logger"
-	"github.com/meschbach/plaid/resources"
+	"github.com/meschbach/plaid/ipc/grpc/reswire"
 	"github.com/thejerf/suture/v4"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
@@ -24,10 +23,11 @@ func (u *UnableToConnect) Error() string {
 }
 
 type Daemon struct {
-	grpcLayer *grpc.ClientConn
-	Storage   Client
-	LoggerV1  logger.V1Client
-	Tree      *suture.Supervisor
+	grpcLayer   *grpc.ClientConn
+	WireStorage reswire.ResourceControllerClient
+	Storage     Client
+	LoggerV1    logger.V1Client
+	Tree        *suture.Supervisor
 }
 
 func (d *Daemon) Disconnect() error {
@@ -74,69 +74,17 @@ func DialClient(ctx context.Context, address string, parent *suture.Supervisor) 
 	}
 	defer dailDone()
 
-	wireClient := wire.NewResourceControllerClient(conn)
+	wireClient := reswire.NewResourceControllerClient(conn)
 	resourceAdapter := NewWireClientAdapter(parent, wireClient)
 	loggerV1Endpoint := logger.NewV1Client(conn)
 	d := &Daemon{
-		grpcLayer: conn,
-		Storage:   resourceAdapter,
-		LoggerV1:  loggerV1Endpoint,
-		Tree:      parent,
+		grpcLayer:   conn,
+		WireStorage: wireClient,
+		Storage:     resourceAdapter,
+		LoggerV1:    loggerV1Endpoint,
+		Tree:        parent,
 	}
 	return d, func() error {
 		return d.Disconnect()
 	}, nil
-}
-
-func typeToWire(t resources.Type) *wire.Type {
-	return &wire.Type{
-		Kind:    t.Kind,
-		Version: t.Version,
-	}
-}
-
-func metaToWire(ref resources.Meta) *wire.Meta {
-	return &wire.Meta{
-		Kind: typeToWire(ref.Type),
-		Name: ref.Name,
-	}
-}
-
-func externalizeEventLevel(l resources.EventLevel) wire.EventLevel {
-	switch l {
-	case resources.AllEvents:
-		return wire.EventLevel_All
-	case resources.Info:
-		return wire.EventLevel_Info
-	case resources.Error:
-		return wire.EventLevel_Error
-	default:
-		panic(fmt.Sprintf("unhandled translation from %d", l))
-	}
-}
-
-func internalizeEventLevel(l wire.EventLevel) resources.EventLevel {
-	switch l {
-	case wire.EventLevel_All:
-		return resources.AllEvents
-	case wire.EventLevel_Error:
-		return resources.Error
-	case wire.EventLevel_Info:
-		return resources.Info
-	default:
-		panic(fmt.Sprintf("unhandled translation from %d", l))
-	}
-}
-
-func internalizeOperation(op wire.WatcherEventOut_Op) resources.ResourceChangedOperation {
-	switch op {
-	case wire.WatcherEventOut_Created:
-		return resources.CreatedEvent
-	case wire.WatcherEventOut_UpdatedStatus:
-		return resources.StatusUpdated
-	case wire.WatcherEventOut_Deleted:
-		return resources.DeletedEvent
-	default:
-		panic(fmt.Sprintf("unknown value %q", op.String()))
-	}
 }

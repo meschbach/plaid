@@ -1,11 +1,11 @@
-package daemon
+package service
 
 import (
 	"context"
 	"fmt"
 	"github.com/meschbach/plaid/internal/plaid/controllers/logdrain"
-	"github.com/meschbach/plaid/internal/plaid/daemon/wire"
 	"github.com/meschbach/plaid/ipc/grpc/logger"
+	"github.com/meschbach/plaid/ipc/grpc/reswire"
 	"github.com/meschbach/plaid/resources"
 	"github.com/meschbach/plaid/service/logging"
 	"github.com/thejerf/suture/v4"
@@ -61,7 +61,7 @@ func (g *GRPCService) Serve(ctx context.Context) error {
 		grpc.StatsHandler(serviceInstrumentation),
 	}
 	server := grpc.NewServer(serviceOptions...)
-	wire.RegisterResourceControllerServer(server, service)
+	reswire.RegisterResourceControllerServer(server, service)
 	logger.RegisterV1Server(server, v1Logging)
 	problem := make(chan error, 1)
 	go func() {

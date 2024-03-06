@@ -14,10 +14,10 @@ const (
 )
 
 type Event struct {
-	When   time.Time
-	Level  EventLevel
-	Format string
-	Params []any
+	When   time.Time  `json:"when"`
+	Level  EventLevel `json:"level"`
+	Format string     `json:"format"`
+	Params []any      `json:"params"`
 }
 
 type logEventReply struct {
@@ -80,6 +80,7 @@ func (c *Client) Log(ctx context.Context, entity Meta, level EventLevel, format 
 }
 
 // GetLogs retrieves all log entries for the given level.  If level is AllEvents then all events will be retrieved
+// todo: merge with GetEvents to clean up interfaces
 func (c *Client) GetLogs(ctx context.Context, forEntity Meta, level EventLevel) ([]Event, bool, error) {
 	result := make(chan getLogEventsReply, 1)
 	select {
@@ -98,6 +99,10 @@ func (c *Client) GetLogs(ctx context.Context, forEntity Meta, level EventLevel) 
 	case <-ctx.Done():
 		return nil, false, ctx.Err()
 	}
+}
+
+func (c *Client) GetEvents(ctx context.Context, forEntity Meta, level EventLevel) ([]Event, bool, error) {
+	return c.GetLogs(ctx, forEntity, level)
 }
 
 type getLogEventsReply struct {

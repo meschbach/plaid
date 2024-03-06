@@ -6,7 +6,7 @@ import (
 	"github.com/thejerf/suture/v4"
 )
 
-func NewFileWatchSystem(r *resources.Controller) *suture.Supervisor {
+func NewFileWatchSystem(r resources.System) *suture.Supervisor {
 	fsn := NewCore()
 	controller := filewatch.NewController(r, fsn)
 	parent := suture.NewSimple("file-watch")

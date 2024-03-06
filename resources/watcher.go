@@ -205,6 +205,10 @@ func (c *ClientWatcher) Close(ctx context.Context) error {
 	return nil
 }
 
+func (c *ClientWatcher) Events() chan ResourceChanged {
+	return c.Feed
+}
+
 type genWatcher struct {
 	feedContext context.Context
 	feedChannel chan ResourceChanged

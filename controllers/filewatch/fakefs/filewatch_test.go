@@ -1,9 +1,9 @@
 package fakefs
 
 import (
-	"context"
 	"github.com/meschbach/plaid/controllers/filewatch"
 	"github.com/meschbach/plaid/resources"
+	"github.com/meschbach/plaid/resources/optest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -12,82 +12,50 @@ import (
 
 func TestFileWatch(t *testing.T) {
 	t.Run("Given a filewatch controller backed by the fakefs", func(t *testing.T) {
-		ctx, done := context.WithCancel(context.Background())
-		t.Cleanup(done)
-
-		res := resources.WithTestSubsystem(t, ctx)
-		watcher, err := res.Store.Watcher(ctx)
-		require.NoError(t, err)
-		t.Cleanup(func() {
-			require.NoError(t, watcher.Close(ctx))
-		})
-
+		ctx, sys := optest.New(t)
 		fake := New()
 
-		res.AttachController("fakefs", fake)
+		sys.Legacy.AttachController("fakefs", fake)
 
-		watchResources := filewatch.NewController(res.Controller, fake)
-		res.AttachController("filewatch", watchResources)
+		watchResources := filewatch.NewController(sys.Legacy.System, fake)
+		sys.Legacy.AttachController("filewatch", watchResources)
 
 		t.Run("When a new path is watched", func(t *testing.T) {
 			examplePath := "/tmp/example"
 
 			meta := resources.FakeMetaOf(filewatch.Alpha1)
-			var lastStatus filewatch.Alpha1Status
-			lastUpdated := time.Now()
-			_, err := watcher.OnResourceStatusChanged(ctx, meta, func(ctx context.Context, changed resources.ResourceChanged) error {
-				lastUpdated = time.Now()
-				_, err := res.Store.GetStatus(ctx, meta, &lastStatus)
-				return err
-			})
-			require.NoError(t, err)
+			target := sys.Observe(ctx, meta)
+			statusChange := target.Status.Fork()
 
-			created := time.Now()
-			require.NoError(t, res.Store.Create(ctx, meta, filewatch.Alpha1Spec{
+			sys.MustCreate(ctx, meta, filewatch.Alpha1Spec{
 				AbsolutePath: examplePath,
-			}))
-			//wait for status update
-			for lastUpdated.Before(created) {
-				select {
-				case <-ctx.Done():
-					require.NoError(t, ctx.Err())
-				case e := <-watcher.Feed:
-					require.NoError(t, watcher.Digest(ctx, e))
-				}
-			}
+			})
+
+			statusChange.Wait(ctx)
 
 			t.Run("And the root path changes", func(t *testing.T) {
 				updated := time.Now()
+				fsPush := target.Status.Fork()
 				require.NoError(t, fake.FileModified(ctx, examplePath, updated))
 
-				//wait for status update
-				for lastUpdated.Before(updated) {
-					select {
-					case <-ctx.Done():
-						require.NoError(t, ctx.Err())
-					case e := <-watcher.Feed:
-						require.NoError(t, watcher.Digest(ctx, e))
-					}
-				}
+				fsPush.Wait(ctx)
 
-				assert.True(t, updated.Equal(*lastStatus.LastChange), "Then the last changed time is equal to the updated time")
+				result := optest.MustGetStatus[filewatch.Alpha1Status](sys, meta)
+				if assert.NotNil(t, result.LastChange) {
+					assert.True(t, result.LastChange.Equal(updated) || result.LastChange.After(updated), "must be equal or after the updated time")
+				}
 			})
 
 			t.Run("And a sub-path changes", func(t *testing.T) {
+				fsSubpathPush := target.Status.Fork()
 				updated := time.Now()
 				require.NoError(t, fake.FileModified(ctx, examplePath+"/subpath/file", updated))
 
-				//wait for status update
-				for lastUpdated.Before(updated) {
-					select {
-					case <-ctx.Done():
-						require.NoError(t, ctx.Err())
-					case e := <-watcher.Feed:
-						require.NoError(t, watcher.Digest(ctx, e))
-					}
+				fsSubpathPush.Wait(ctx)
+				result := optest.MustGetStatus[filewatch.Alpha1Status](sys, meta)
+				if assert.NotNil(t, result.LastChange) {
+					assert.True(t, result.LastChange.Equal(updated) || result.LastChange.After(updated), "must be equal or after the updated time")
 				}
-
-				assert.True(t, updated.Equal(*lastStatus.LastChange), "Then the last changed time is equal to the updated time")
 			})
 		})
 	})

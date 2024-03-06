@@ -27,7 +27,7 @@ func (o *ObservedResource) consumeEvent(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case e := <-o.system.observer.Feed:
+	case e := <-o.system.observer.Events():
 		return o.system.observer.Digest(ctx, e)
 	}
 }

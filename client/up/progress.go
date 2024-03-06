@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/meschbach/plaid/internal/plaid/daemon"
+	"github.com/meschbach/plaid/ipc/grpc/reswire/client"
 	"github.com/meschbach/plaid/resources"
 )
 
 type ReportProgress[T any] struct {
 	Prefix   string
-	Core     *daemon.Daemon
+	Core     *client.Daemon
 	Of       resources.Meta
 	OnChange func(ctx context.Context, status T) error
 }

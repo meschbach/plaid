@@ -11,9 +11,9 @@ import (
 	"github.com/meschbach/plaid/internal/plaid/controllers/buildrun"
 	"github.com/meschbach/plaid/internal/plaid/controllers/project"
 	"github.com/meschbach/plaid/internal/plaid/controllers/projectfile"
-	"github.com/meschbach/plaid/internal/plaid/daemon"
 	"github.com/meschbach/plaid/internal/plaid/registry"
 	"github.com/meschbach/plaid/ipc/grpc/logger"
+	"github.com/meschbach/plaid/ipc/grpc/reswire/client"
 	"github.com/meschbach/plaid/resources"
 	"github.com/thejerf/suture/v4"
 	"go.opentelemetry.io/otel/codes"
@@ -27,7 +27,7 @@ type UpOptions struct {
 	DeleteOnCompletion bool
 }
 
-func Up(ctx context.Context, daemon *daemon.Daemon, rt *client2.Runtime, opts UpOptions) error {
+func Up(ctx context.Context, daemon *client.Daemon, rt *client2.Runtime, opts UpOptions) error {
 	//
 	pwd, err := os.Getwd()
 	if err != nil {
@@ -194,7 +194,7 @@ func Up(ctx context.Context, daemon *daemon.Daemon, rt *client2.Runtime, opts Up
 	}
 }
 
-func upCreateRegistry(parent context.Context, client daemon.Client, configRef resources.Meta, plaidConfigFile string) error {
+func upCreateRegistry(parent context.Context, client client.Client, configRef resources.Meta, plaidConfigFile string) error {
 	ctx, span := tracer.Start(parent, "up.create-registry")
 	defer span.End()
 
@@ -205,7 +205,7 @@ func upCreateRegistry(parent context.Context, client daemon.Client, configRef re
 	return nil
 }
 
-func upCreateProject(parent context.Context, client daemon.Client, baseDirectory, relativeProjectFile string, ref resources.Meta) error {
+func upCreateProject(parent context.Context, client client.Client, baseDirectory, relativeProjectFile string, ref resources.Meta) error {
 	ctx, span := tracer.Start(parent, "up.create-project")
 	defer span.End()
 

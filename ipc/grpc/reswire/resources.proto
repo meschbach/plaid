@@ -1,7 +1,7 @@
 syntax = "proto3";
 
-package wire;
-option go_package = "git.meschbach.com/mee/platform.git/plaid/internal/plaid/daemon/wire";
+package reswire;
+option go_package = "git.meschbach.com/mee/platform.git/plaid/ipc/grpc/reswire";
 
 import "google/protobuf/timestamp.proto";
 
@@ -10,7 +10,9 @@ service ResourceController {
   rpc Delete(DeleteResourceIn) returns (DeleteResourceOut) {}
   rpc Get(GetIn) returns (GetOut){}
   rpc GetStatus(GetStatusIn) returns (GetStatusOut) {}
+  rpc UpdateStatus(UpdateStatusIn) returns (UpdateStatusOut) {}
   rpc GetEvents(GetEventsIn) returns (GetEventsOut) {}
+  rpc Log(LogIn) returns (LogOut) {}
   rpc Watcher(stream WatcherEventIn) returns (stream WatcherEventOut) {}
   rpc List(ListIn) returns (ListOut) {}
 }
@@ -64,6 +66,15 @@ message GetStatusOut {
   bytes status = 2;
 }
 
+message UpdateStatusIn {
+  Meta target = 1;
+  bytes status = 2;
+}
+
+message UpdateStatusOut {
+  bool exists = 1;
+}
+
 //WatcherEventIn is a client request to the service to modify a watcher
 message WatcherEventIn {
   uint64 tag = 1;
@@ -109,4 +120,13 @@ message DeleteResourceIn {
 
 message DeleteResourceOut {
   bool success = 1;
+}
+
+message LogIn {
+  Meta ref = 1;
+  Event event = 2;
+}
+
+message LogOut {
+  bool exists = 1;
 }

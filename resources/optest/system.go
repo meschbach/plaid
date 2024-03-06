@@ -9,11 +9,13 @@ import (
 )
 
 type System struct {
-	t         *testing.T
-	root      context.Context
-	Legacy    *resources.TestSubsystem
-	observer  *resources.ClientWatcher
-	observers *resources.MetaContainer[ObservedResource]
+	t             *testing.T
+	s             resources.System
+	root          context.Context
+	Legacy        *resources.TestSubsystem
+	observer      resources.Watcher
+	observers     *resources.MetaContainer[ObservedResource]
+	typeObservers *resources.TypeContainer[ObservedType]
 }
 
 func (s *System) Observe(ctx context.Context, ref resources.Meta) *ObservedResource {
@@ -33,8 +35,46 @@ func (s *System) Observe(ctx context.Context, ref resources.Meta) *ObservedResou
 	return observer
 }
 
+func (s *System) ObserveType(ctx context.Context, kind resources.Type) *ObservedType {
+	observer, created := s.typeObservers.GetOrCreate(kind, func() *ObservedType {
+		o := &ObservedType{
+			system: s,
+		}
+		o.AnyEvent = &TypeAspect{observer: o}
+		o.Create = &TypeAspect{observer: o}
+		o.Delete = &TypeAspect{observer: o}
+		o.Update = &TypeAspect{observer: o}
+		o.UpdateStatus = &TypeAspect{observer: o}
+		return o
+	})
+	if created {
+		token, err := s.observer.OnType(ctx, kind, observer.onResourceEvent)
+		require.NoError(s.t, err)
+		observer.token = token
+	}
+	return observer
+}
+
 func (s *System) MustCreate(ctx context.Context, ref resources.Meta, spec any) {
-	require.NoError(s.t, s.Legacy.Store.Create(ctx, ref, spec))
+	storage, err := s.s.Storage(ctx)
+	require.NoError(s.t, err)
+	require.NoError(s.t, storage.Create(ctx, ref, spec))
+}
+
+func (s *System) MustDelete(ctx context.Context, ref resources.Meta) {
+	storage, err := s.s.Storage(ctx)
+	require.NoError(s.t, err)
+	exists, err := storage.Delete(ctx, ref)
+	require.NoError(s.t, err)
+	require.True(s.t, exists, "must have existed")
+}
+
+func (s *System) MustUpdateStatus(ctx context.Context, ref resources.Meta, status interface{}) {
+	storage, err := s.s.Storage(ctx)
+	require.NoError(s.t, err)
+	exists, err := storage.UpdateStatus(ctx, ref, status)
+	require.NoError(s.t, err)
+	require.True(s.t, exists, "expected to exist but did not")
 }
 
 func New(t *testing.T) (context.Context, *System) {
@@ -44,11 +84,30 @@ func New(t *testing.T) (context.Context, *System) {
 	systemObserver, err := legacy.Store.Watcher(ctx)
 	require.NoError(t, err)
 	sys := &System{
-		t:         t,
-		root:      ctx,
-		Legacy:    legacy,
-		observer:  systemObserver,
-		observers: resources.NewMetaContainer[ObservedResource](),
+		t:             t,
+		s:             legacy.System,
+		root:          ctx,
+		Legacy:        legacy,
+		observer:      systemObserver,
+		observers:     resources.NewMetaContainer[ObservedResource](),
+		typeObservers: resources.NewTypeContainer[ObservedType](),
 	}
 	return ctx, sys
+}
+
+func From(t *testing.T, ctx context.Context, s resources.System) *System {
+	storage, err := s.Storage(ctx)
+	require.NoError(t, err)
+	watcher, err := storage.Observer(ctx)
+	require.NoError(t, err)
+
+	return &System{
+		t:             t,
+		s:             s,
+		root:          nil,
+		Legacy:        nil,
+		observer:      watcher,
+		observers:     resources.NewMetaContainer[ObservedResource](),
+		typeObservers: resources.NewTypeContainer[ObservedType](),
+	}
 }

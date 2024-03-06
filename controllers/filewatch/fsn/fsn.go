@@ -62,6 +62,7 @@ func (c *Core) Serve(ctx context.Context) error {
 				return fmt.Errorf("unknown operation %d", op.op)
 			}
 		case err := <-watcher.Errors:
+			fmt.Printf("FSN error: %e\n", err)
 			return err
 		case e := <-watcher.Events:
 			if err := c.consumeFSEvent(ctx, e); err != nil {

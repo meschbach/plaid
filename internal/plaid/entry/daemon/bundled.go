@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"context"
-	"github.com/meschbach/plaid/controllers/filewatch/fsn"
 	"github.com/meschbach/plaid/internal/plaid/controllers/buildrun"
 	localexec "github.com/meschbach/plaid/internal/plaid/controllers/exec/local"
 	"github.com/meschbach/plaid/internal/plaid/controllers/logdrain"
@@ -71,8 +70,6 @@ func (b *bundledServices) attachV0_1_0() {
 	probesTree := suture.NewSimple("probes/http")
 	b.Add(probesTree)
 	b.Add(httpProbe.NewController(b.resources, probesTree))
-	//file watches
-	b.Add(fsn.NewFileWatchSystem(b.resources))
 
 	//Legacy services which should be replaced
 	b.Add(registry.NewController(b.resources))

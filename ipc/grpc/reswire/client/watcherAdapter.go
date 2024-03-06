@@ -1,9 +1,10 @@
-package daemon
+package client
 
 import (
 	"context"
 	"errors"
-	"github.com/meschbach/plaid/internal/plaid/daemon/wire"
+	"fmt"
+	"github.com/meschbach/plaid/ipc/grpc/reswire"
 	"github.com/meschbach/plaid/resources"
 	"github.com/thejerf/suture/v4"
 	"go.opentelemetry.io/otel/attribute"
@@ -22,8 +23,8 @@ type wireAdapterHandler struct {
 
 // watcherAdapter is a client to fulfill watcher semantics.
 type watcherAdapter struct {
-	wire   wire.ResourceControllerClient
-	stream wire.ResourceController_WatcherClient
+	wire   reswire.ResourceControllerClient
+	stream reswire.ResourceController_WatcherClient
 	tags   map[resources.WatchToken]*wireAdapterHandler
 	next   atomic.Int32
 }
@@ -52,37 +53,47 @@ func (w *watcherAdapter) Serve(ctx context.Context) error {
 	}
 }
 
-func (w *watcherAdapter) dispatch(serviceContext context.Context, e *wire.WatcherEventOut) error {
-	if op, has := w.tags[resources.WatchToken(e.Tag)]; has {
-		operation := internalizeOperation(e.Op)
-		which := internalizeMeta(e.Ref)
+func (w *watcherAdapter) dispatch(serviceContext context.Context, e *reswire.WatcherEventOut) error {
+	if e == nil {
+		fmt.Printf("WARNING: nil event\n")
+		return nil
+	}
+	if e.Ref == nil {
+		fmt.Printf("WARNING: nil on ref for %#v\n", e)
+		return nil
+	}
+	operation := reswire.InternalizeOperation(e.Op)
+	which := reswire.InternalizeMeta(e.Ref)
+	ctx, span := tracer.Start(serviceContext, "wire/ClientWatcher.dispatch["+operation.String()+" of "+which.Type.String()+"]")
+	defer span.End()
+	span.SetAttributes(which.AsTraceAttribute("which")...)
+	span.SetAttributes(attribute.Int64("tag", int64(e.Tag)))
+	op, has := w.tags[resources.WatchToken(e.Tag)]
+	if !has {
+		span.AddEvent("tag missing")
+		//todo: note tag went missing
+	}
 
-		parentContext := trace.ContextWithRemoteSpanContext(serviceContext, op.parentSpan)
-		ctx, span := tracer.Start(parentContext, operation.String()+" of "+which.Type.String())
-		defer span.End()
-		if err := op.handler(ctx, resources.ResourceChanged{
-			Which:     which,
-			Operation: operation,
-			Tracing:   trace.LinkFromContext(ctx),
-		}); err != nil {
-			if errors.Is(err, io.EOF) || errors.Is(err, context.Canceled) {
-				span.AddEvent("eof or canceled")
-				return suture.ErrDoNotRestart
-			} else {
-				span.SetStatus(otelcodes.Error, "unexpected wire error")
-				return err
-			}
+	if err := op.handler(ctx, resources.ResourceChanged{
+		Which:     which,
+		Operation: operation,
+		Tracing:   trace.LinkFromContext(ctx),
+	}); err != nil {
+		if errors.Is(err, io.EOF) || errors.Is(err, context.Canceled) {
+			span.AddEvent("eof or canceled")
+			return suture.ErrDoNotRestart
+		} else {
+			span.SetStatus(otelcodes.Error, "unexpected wire error")
+			return err
 		}
-	} else {
-		//todo: resource went missing?
 	}
 	return nil
 }
 
 func (w *watcherAdapter) OnType(ctx context.Context, kind resources.Type, consume resources.OnResourceChanged) (resources.WatchToken, error) {
 	tag := w.next.Add(1)
-	k := typeToWire(kind)
-	if err := w.stream.Send(&wire.WatcherEventIn{
+	k := reswire.ExternalizeType(kind)
+	if err := w.stream.Send(&reswire.WatcherEventIn{
 		Tag:    uint64(tag),
 		OnType: k,
 	}); err != nil {
@@ -97,8 +108,8 @@ func (w *watcherAdapter) OnResource(parent context.Context, ref resources.Meta, 
 	_, span := tracer.Start(parent, "Watcher.OnResource")
 	defer span.End()
 	tag := w.next.Add(1)
-	wireRef := metaToWire(ref)
-	if err := w.stream.Send(&wire.WatcherEventIn{
+	wireRef := reswire.MetaToWire(ref)
+	if err := w.stream.Send(&reswire.WatcherEventIn{
 		Tag:        uint64(tag),
 		OnResource: wireRef,
 	}); err != nil {
@@ -120,7 +131,7 @@ func noOpChangeListener(ctx context.Context, changed resources.ResourceChanged) 
 func (w *watcherAdapter) Off(ctx context.Context, token resources.WatchToken) error {
 	w.tags[token].handler = noOpChangeListener
 	t := true
-	return w.stream.Send(&wire.WatcherEventIn{
+	return w.stream.Send(&reswire.WatcherEventIn{
 		Tag:    uint64(token),
 		Delete: &t,
 	})

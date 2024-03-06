@@ -2,8 +2,8 @@ package filewatch
 
 import (
 	"context"
+	"github.com/meschbach/plaid/controllers/tooling/kit"
 	"github.com/meschbach/plaid/resources"
-	"github.com/meschbach/plaid/resources/operator"
 	"time"
 )
 
@@ -14,12 +14,12 @@ type watch struct {
 	base string
 	//recursive
 	watching    bool
-	bridge      *operator.KindBridgeState
+	bridge      kit.Manager
 	lastUpdated *time.Time
 }
 
 func (w *watch) flushStatus(ctx context.Context) error {
-	return w.bridge.OnResourceChange(ctx, w.meta)
+	return w.bridge.UpdateStatus(ctx)
 }
 
 func (w *watch) asStatus() Alpha1Status {
