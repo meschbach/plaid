@@ -1,10 +1,14 @@
 #!/bin/bash
 
+export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:4317
+export OTEL_EXPORTER=grpc
+export ENV=systest
+
 set -e
 echo
 echo "Testing"
 echo
-export ENV=systest
+export TEST_TIMEOUT="5s"
 unit_test_flags="-count 1 -tags sane"
 go test -timeout 10s $unit_test_flags ./resources/...
 go test -timeout 10s $unit_test_flags ./internal/plaid/...

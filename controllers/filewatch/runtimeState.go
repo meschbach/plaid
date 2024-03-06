@@ -34,12 +34,18 @@ func (r *runtimeState) unregisterWatch(ctx context.Context, path string, observe
 }
 
 func (r *runtimeState) consumeFSEvent(parent context.Context, event ChangeEvent) error {
-	ctx, span := tracing.Start(parent, "FileWatch/runtime.consumeFSEvent", trace.WithAttributes(attribute.String("file.Path", event.Path)))
+	ctx, span := tracing.Start(parent, "FileWatch/runtime.consumeFSEvent", trace.WithAttributes(
+		attribute.String("file.path", event.Path),
+		attribute.Stringer("file.kind", event.Kind),
+	))
 	defer span.End()
 
 	var problems []error
 	for _, w := range r.watchers {
 		if strings.HasPrefix(event.Path, w.base) {
+			span.AddEvent("match", trace.WithAttributes(
+				append(w.meta.AsTraceAttribute("watch.meta"), attribute.String("watch.base", w.base))...,
+			))
 			w.lastUpdated = &event.When
 			if err := w.flushStatus(ctx); err != nil {
 				problems = append(problems, err)

@@ -43,6 +43,10 @@ func (c *Controller) Serve(ctx context.Context) error {
 			if err := storageWatcher.Digest(ctx, v1Change); err != nil {
 				return err
 			}
+		case e := <-bridge.Loopback:
+			if err := bridge.DigestLoopback(ctx, e); err != nil {
+				return err
+			}
 		case <-ctx.Done():
 			return ctx.Err()
 		}
