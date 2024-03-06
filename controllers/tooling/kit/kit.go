@@ -15,6 +15,7 @@ type state[State any] struct {
 }
 
 type Kit[Spec any, Status any, State any] struct {
+	Loopback chan LoopbackEvent
 	store    resources.Storage
 	observer resources.Watcher
 	kind     resources.Type
@@ -23,7 +24,9 @@ type Kit[Spec any, Status any, State any] struct {
 }
 
 func New[Spec any, Status any, State any](manage resources.Storage, observer resources.Watcher, kind resources.Type, bridge Operations[Spec, Status, State]) *Kit[Spec, Status, State] {
+	loopback := make(chan LoopbackEvent, 4)
 	kit := &Kit[Spec, Status, State]{
+		Loopback: loopback,
 		store:    manage,
 		observer: observer,
 		kind:     kind,
@@ -125,9 +128,9 @@ func (k *Kit[Spec, Status, State]) create(parentCtx context.Context, which resou
 		return nil
 	}
 
-	manager := &observerInjectedManager{
-		target:   which,
-		observer: k.observer,
+	manager := &loopbackManager{
+		target: k.Loopback,
+		ref:    which,
 	}
 	runtimeState, err := k.bridge.Create(ctx, which, spec, manager)
 	if err != nil {
