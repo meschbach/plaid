@@ -12,6 +12,6 @@ jobs:
       - name: Setup Go ${{ matrix.go-version }}
         uses: actions/setup-go@v4
         with:
-          go-version: ${ {matrix.go-version }}
+          go-version: ${{matrix.go-version }}
       - name: Run Unit Tests
         run: ./test-daemon.sh
