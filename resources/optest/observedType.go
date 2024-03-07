@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/meschbach/plaid/resources"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 )
 
 // todo: a lot of the aspect things could probably be reused/DRYed
@@ -73,7 +73,7 @@ type TypeChangePoint struct {
 
 func (r *TypeChangePoint) Wait(ctx context.Context) {
 	for r.origin >= r.aspect.events {
-		require.NoError(r.aspect.observer.system.t, r.aspect.consumeEvent(ctx))
+		assert.NoError(r.aspect.observer.system.t, r.aspect.consumeEvent(ctx))
 	}
 }
 
