@@ -72,19 +72,22 @@ func (s *System) MustUpdateStatus(ctx context.Context, ref resources.Meta, statu
 	require.True(s.t, exists, "expected to exist but did not")
 }
 
-func (s *System) Run(name string, test func(t *testing.T, s *System)) {
+func (s *System) Run(name string, test func(t *testing.T, s *System, ctx context.Context)) {
 	s.t.Run(name, func(t *testing.T) {
+		ctx, done := context.WithCancel(s.root)
+		t.Cleanup(done)
+
 		next := &System{
 			t:             t,
 			s:             s.s,
-			root:          s.root,
+			root:          ctx,
 			Legacy:        s.Legacy,
 			storage:       s.storage,
 			observer:      s.observer,
 			observers:     s.observers,
 			typeObservers: s.typeObservers,
 		}
-		test(t, next)
+		test(t, next, ctx)
 	})
 }
 
@@ -107,7 +110,10 @@ func New(t *testing.T) (context.Context, *System) {
 	return ctx, sys
 }
 
-func From(t *testing.T, ctx context.Context, s resources.System) *System {
+func From(t *testing.T, parent context.Context, s resources.System) *System {
+	ctx, done := context.WithCancel(parent)
+	t.Cleanup(done)
+
 	storage, err := s.Storage(ctx)
 	require.NoError(t, err)
 	watcher, err := storage.Observer(ctx)
@@ -116,7 +122,7 @@ func From(t *testing.T, ctx context.Context, s resources.System) *System {
 	return &System{
 		t:             t,
 		s:             s,
-		root:          nil,
+		root:          ctx,
 		Legacy:        nil,
 		storage:       storage,
 		observer:      watcher,

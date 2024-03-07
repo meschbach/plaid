@@ -49,13 +49,13 @@ func TestSystem(t *testing.T) {
 	clientSystem := client.New(conn, clientSideTree)
 	clientSide := optest.From(t, ctx, clientSystem)
 
-	clientSide.Run("Watch type", func(t *testing.T, clientSide *optest.System) {
+	clientSide.Run("Watch type", func(t *testing.T, clientSide *optest.System, ctx context.Context) {
 		exampleKind := resources.FakeType()
 		observer := clientSide.ObserveType(ctx, exampleKind)
 
 		ref := resources.FakeMetaOf(exampleKind)
 		entityStatus := exampleEntity{Words: "z"}
-		clientSide.Run("When creating a new resource", func(t *testing.T, clientSide *optest.System) {
+		clientSide.Run("When creating a new resource", func(t *testing.T, clientSide *optest.System, ctx context.Context) {
 			anyEvent := observer.AnyEvent.Fork()
 			create := observer.Create.Fork()
 			clientSide.MustCreate(ctx, ref, entityStatus)
@@ -64,7 +64,7 @@ func TestSystem(t *testing.T) {
 			create.Wait(ctx)
 		})
 
-		clientSide.Run("When updating status of an exiting resource", func(t *testing.T, clientSide *optest.System) {
+		clientSide.Run("When updating status of an exiting resource", func(t *testing.T, clientSide *optest.System, ctx context.Context) {
 			status := exampleStatus{Response: "destroyed systems"}
 			anyChange := observer.AnyEvent.Fork()
 			statusChange := observer.UpdateStatus.Fork()
@@ -74,7 +74,7 @@ func TestSystem(t *testing.T) {
 			statusChange.Wait(ctx)
 		})
 
-		clientSide.Run("When the resource is deleted", func(t *testing.T, clientSide *optest.System) {
+		clientSide.Run("When the resource is deleted", func(t *testing.T, clientSide *optest.System, ctx context.Context) {
 			deleteOp := observer.Delete.Fork()
 			serviceSide.MustDelete(ctx, ref)
 			deleteOp.Wait(ctx)
