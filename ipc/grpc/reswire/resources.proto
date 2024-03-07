@@ -92,6 +92,8 @@ message WatcherEventOut {
     Updated = 1;
     UpdatedStatus = 2;
     Deleted = 3;
+    //ChangeAck lets the client know a requested operation has completed.  Used for changes to registration
+    ChangeAck = 4;
   }
   Op op = 3;
 }

@@ -51,6 +51,12 @@ func (w *watcherBridge) consumeInput(ctx context.Context, e *reswire.WatcherEven
 			return err
 		}
 		w.tokens[e.Tag] = token
+		if err := w.stream.Send(&reswire.WatcherEventOut{
+			Tag: e.Tag,
+			Op:  reswire.WatcherEventOut_ChangeAck,
+		}); err != nil {
+			return err
+		}
 	}
 	if e.OnType != nil {
 		token, err := w.watcher.OnType(ctx, reswire.InternalizeKind(e.OnType), func(ctx context.Context, changed resources.ResourceChanged) error {
@@ -64,7 +70,15 @@ func (w *watcherBridge) consumeInput(ctx context.Context, e *reswire.WatcherEven
 		if err != nil {
 			return err
 		}
+		//todo: sync table
 		w.tokens[e.Tag] = token
+		//send acknowledgement of registration
+		if err := w.stream.Send(&reswire.WatcherEventOut{
+			Tag: e.Tag,
+			Op:  reswire.WatcherEventOut_ChangeAck,
+		}); err != nil {
+			return err
+		}
 	}
 	if e.Delete != nil && *e.Delete {
 		if t, has := w.tokens[e.Tag]; has {
