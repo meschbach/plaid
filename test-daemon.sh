@@ -1,8 +1,9 @@
 #!/bin/bash
 
-export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:4317
-export OTEL_EXPORTER=grpc
-export ENV=systest
+if [ -f "$PWD/test.env.sh" ]; then
+  source "$PWD/test.env.sh"
+  export ENV=systest
+fi
 
 set -e
 echo
@@ -21,7 +22,7 @@ echo
 build_flags=""
 go build $build_flags -o tests/system/plaid-daemon ./cmd/daemon
 go build $build_flags -o tests/system/plaid-client ./cmd/client
-go build $build_flags -o tests/fsnwatch ./cmd/fsnwatch
+go build $build_flags -o tests/fsn-watch ./cmd/fsnwatch
 
 daemon=$PWD/tests/system/plaid-daemon
 client=$PWD/tests/system/plaid-client
