@@ -6,6 +6,7 @@ import (
 	"github.com/meschbach/plaid/ipc/grpc/reswire"
 	"github.com/meschbach/plaid/resources"
 	"github.com/thejerf/suture/v4"
+	"sync"
 )
 
 type WireClientAdapter struct {
@@ -117,10 +118,13 @@ func (w *WireClientAdapter) Watcher(ctx context.Context) (Watcher, error) {
 		return nil, err
 	}
 	adapter := &watcherAdapter{
-		wire:   w.wire,
-		stream: wc,
-		tags:   make(map[resources.WatchToken]*wireAdapterHandler),
+		wire:     w.wire,
+		stream:   wc,
+		tags:     make(map[resources.WatchToken]*wireAdapterHandler),
+		ackTable: make(map[uint64]*reswire.WatcherEventOut),
+		ackLock:  &sync.Mutex{},
 	}
+	adapter.ackCondition = sync.NewCond(adapter.ackLock)
 	w.workPool.Add(adapter)
 	return adapter, nil
 }

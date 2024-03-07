@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"io"
+	"sync"
 	"sync/atomic"
 )
 
@@ -25,8 +26,13 @@ type wireAdapterHandler struct {
 type watcherAdapter struct {
 	wire   reswire.ResourceControllerClient
 	stream reswire.ResourceController_WatcherClient
-	tags   map[resources.WatchToken]*wireAdapterHandler
-	next   atomic.Int32
+	//todo: tags should be synchronized
+	tags map[resources.WatchToken]*wireAdapterHandler
+	next atomic.Int32
+	//ackTable access is mediated through ackLock
+	ackTable     map[uint64]*reswire.WatcherEventOut
+	ackLock      *sync.Mutex
+	ackCondition *sync.Cond
 }
 
 func (w *watcherAdapter) Serve(ctx context.Context) error {
@@ -58,6 +64,10 @@ func (w *watcherAdapter) dispatch(serviceContext context.Context, e *reswire.Wat
 		fmt.Printf("WARNING: nil event\n")
 		return nil
 	}
+	if e.Op == reswire.WatcherEventOut_ChangeAck {
+		return w.acknowledge(serviceContext, e)
+	}
+
 	if e.Ref == nil {
 		fmt.Printf("WARNING: nil on ref for %#v\n", e)
 		return nil
@@ -92,36 +102,42 @@ func (w *watcherAdapter) dispatch(serviceContext context.Context, e *reswire.Wat
 
 func (w *watcherAdapter) OnType(ctx context.Context, kind resources.Type, consume resources.OnResourceChanged) (resources.WatchToken, error) {
 	tag := w.next.Add(1)
+	token := resources.WatchToken(tag)
+	//todo: sync
+	w.tags[token] = &wireAdapterHandler{handler: consume, parentSpan: trace.SpanContextFromContext(ctx)}
+
+	wireTag := uint64(tag)
 	k := reswire.ExternalizeType(kind)
 	if err := w.stream.Send(&reswire.WatcherEventIn{
-		Tag:    uint64(tag),
+		Tag:    wireTag,
 		OnType: k,
 	}); err != nil {
 		return 0, err
 	}
-	token := resources.WatchToken(tag)
-	w.tags[token] = &wireAdapterHandler{handler: consume, parentSpan: trace.SpanContextFromContext(ctx)}
-	return token, nil
+	return token, w.waitOnAck(ctx, wireTag)
 }
 
 func (w *watcherAdapter) OnResource(parent context.Context, ref resources.Meta, consume resources.OnResourceChanged) (resources.WatchToken, error) {
-	_, span := tracer.Start(parent, "Watcher.OnResource")
+	ctx, span := tracer.Start(parent, "Watcher.OnResource")
 	defer span.End()
 	tag := w.next.Add(1)
-	wireRef := reswire.MetaToWire(ref)
-	if err := w.stream.Send(&reswire.WatcherEventIn{
-		Tag:        uint64(tag),
-		OnResource: wireRef,
-	}); err != nil {
-		return 0, err
-	}
 	token := resources.WatchToken(tag)
 	span.SetAttributes(attribute.Int64("tag", int64(tag)), attribute.Int64("token", int64(token)))
 	w.tags[token] = &wireAdapterHandler{
 		handler:    consume,
 		parentSpan: trace.SpanContextFromContext(parent),
 	}
-	return token, nil
+
+	wireTag := uint64(tag)
+	wireRef := reswire.MetaToWire(ref)
+	if err := w.stream.Send(&reswire.WatcherEventIn{
+		Tag:        wireTag,
+		OnResource: wireRef,
+	}); err != nil {
+		return 0, err
+	}
+
+	return token, w.waitOnAck(ctx, wireTag)
 }
 
 func noOpChangeListener(ctx context.Context, changed resources.ResourceChanged) error {
@@ -139,4 +155,37 @@ func (w *watcherAdapter) Off(ctx context.Context, token resources.WatchToken) er
 
 func (w *watcherAdapter) Close(ctx context.Context) error {
 	return w.stream.CloseSend()
+}
+
+func (w *watcherAdapter) waitOnAck(ctx context.Context, tag uint64) error {
+	response := make(chan *reswire.WatcherEventOut, 1)
+	go func() {
+		w.ackLock.Lock()
+		defer w.ackLock.Unlock()
+		defer close(response)
+
+		for {
+			acknowledged, has := w.ackTable[tag]
+			if has && acknowledged != nil {
+				response <- acknowledged
+			}
+
+			w.ackCondition.Wait()
+		}
+	}()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-response:
+		return nil
+	}
+}
+
+func (w *watcherAdapter) acknowledge(serviceContext context.Context, e *reswire.WatcherEventOut) error {
+	w.ackLock.Lock()
+	defer w.ackLock.Unlock()
+
+	w.ackTable[e.Tag] = e
+	w.ackCondition.Broadcast()
+	return nil
 }
