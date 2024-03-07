@@ -92,7 +92,9 @@ func (s *System) Run(name string, test func(t *testing.T, s *System, ctx context
 }
 
 func New(t *testing.T) (context.Context, *System) {
-	ctx := jtest.ContextFromEnv(t)
+	envCtx := jtest.ContextFromEnv(t)
+	ctx, done := context.WithCancel(envCtx)
+	t.Cleanup(done)
 
 	legacy := resources.WithTestSubsystem(t, ctx)
 	systemObserver, err := legacy.Store.Watcher(ctx)

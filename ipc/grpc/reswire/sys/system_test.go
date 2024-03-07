@@ -60,8 +60,8 @@ func TestSystem(t *testing.T) {
 			create := observer.Create.Fork()
 			clientSide.MustCreate(ctx, ref, entityStatus)
 
-			anyEvent.Wait(ctx)
-			create.Wait(ctx)
+			anyEvent.Wait(t, ctx)
+			create.Wait(t, ctx)
 		})
 
 		clientSide.Run("When updating status of an exiting resource", func(t *testing.T, clientSide *optest.System, ctx context.Context) {
@@ -70,14 +70,14 @@ func TestSystem(t *testing.T) {
 			statusChange := observer.UpdateStatus.Fork()
 			clientSide.MustUpdateStatus(ctx, ref, status)
 
-			anyChange.Wait(ctx)
-			statusChange.Wait(ctx)
+			anyChange.Wait(t, ctx)
+			statusChange.Wait(t, ctx)
 		})
 
 		clientSide.Run("When the resource is deleted", func(t *testing.T, clientSide *optest.System, ctx context.Context) {
 			deleteOp := observer.Delete.Fork()
 			serviceSide.MustDelete(ctx, ref)
-			deleteOp.Wait(ctx)
+			deleteOp.Wait(t, ctx)
 		})
 	})
 }

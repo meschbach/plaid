@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/meschbach/plaid/resources"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"testing"
 )
 
 // todo: a lot of the aspect things could probably be reused/DRYed
@@ -71,14 +72,19 @@ type TypeChangePoint struct {
 	origin uint64
 }
 
-func (r *TypeChangePoint) Wait(ctx context.Context) {
+func (r *TypeChangePoint) Wait(t *testing.T, ctx context.Context) {
+	t.Helper()
 	for r.origin >= r.aspect.events {
-		assert.NoError(r.aspect.observer.system.t, r.aspect.consumeEvent(ctx))
+		err := r.aspect.consumeEvent(ctx)
+		if err != nil {
+			require.NoError(t, err)
+			return
+		}
 	}
 }
 
-func (r *TypeChangePoint) WaitFor(ctx context.Context, satisfied func(ctx context.Context) bool) {
+func (r *TypeChangePoint) WaitFor(t *testing.T, ctx context.Context, satisfied func(ctx context.Context) bool) {
 	for !satisfied(ctx) {
-		r.Wait(ctx)
+		r.Wait(t, ctx)
 	}
 }
