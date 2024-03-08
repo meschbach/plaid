@@ -19,44 +19,6 @@ type System struct {
 	typeObservers *resources.TypeContainer[ObservedType]
 }
 
-func (s *System) Observe(ctx context.Context, ref resources.Meta) *ObservedResource {
-	observer, created := s.observers.GetOrCreate(ref, func() *ObservedResource {
-		o := &ObservedResource{
-			system: s,
-		}
-		o.AnyEvent = &ResourceAspect{observer: o}
-		o.Spec = &ResourceAspect{observer: o}
-		o.Status = &ResourceAspect{observer: o}
-		return o
-	})
-	if created {
-		token, err := s.observer.OnResource(ctx, ref, observer.onResourceEvent)
-		require.NoError(s.t, err)
-		observer.token = token
-	}
-	return observer
-}
-
-func (s *System) ObserveType(ctx context.Context, kind resources.Type) *ObservedType {
-	observer, created := s.typeObservers.GetOrCreate(kind, func() *ObservedType {
-		o := &ObservedType{
-			system: s,
-		}
-		o.AnyEvent = &TypeAspect{observer: o}
-		o.Create = &TypeAspect{observer: o}
-		o.Delete = &TypeAspect{observer: o}
-		o.Update = &TypeAspect{observer: o}
-		o.UpdateStatus = &TypeAspect{observer: o}
-		return o
-	})
-	if created {
-		token, err := s.observer.OnType(ctx, kind, observer.onResourceEvent)
-		require.NoError(s.t, err)
-		observer.token = token
-	}
-	return observer
-}
-
 func (s *System) MustCreate(ctx context.Context, ref resources.Meta, spec any) {
 	require.NoError(s.t, s.storage.Create(ctx, ref, spec))
 }

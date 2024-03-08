@@ -4,17 +4,37 @@ import (
 	"context"
 	"fmt"
 	"github.com/meschbach/plaid/resources"
+	"github.com/stretchr/testify/require"
 )
 
-// todo: a lot of the aspect things could probably be reused/DRYed
+func (s *System) ObserveType(ctx context.Context, kind resources.Type) *ObservedType {
+	observer, created := s.typeObservers.GetOrCreate(kind, func() *ObservedType {
+		o := &ObservedType{
+			system: s,
+		}
+		o.AnyEvent = &Aspect{observer: o}
+		o.Create = &Aspect{observer: o}
+		o.Delete = &Aspect{observer: o}
+		o.Update = &Aspect{observer: o}
+		o.UpdateStatus = &Aspect{observer: o}
+		return o
+	})
+	if created {
+		token, err := s.observer.OnType(ctx, kind, observer.onResourceEvent)
+		require.NoError(s.t, err)
+		observer.token = token
+	}
+	return observer
+}
+
 type ObservedType struct {
 	system       *System
 	token        resources.WatchToken
-	AnyEvent     *TypeAspect
-	Create       *TypeAspect
-	Delete       *TypeAspect
-	Update       *TypeAspect
-	UpdateStatus *TypeAspect
+	AnyEvent     *Aspect
+	Create       *Aspect
+	Delete       *Aspect
+	Update       *Aspect
+	UpdateStatus *Aspect
 }
 
 func (o *ObservedType) onResourceEvent(ctx context.Context, event resources.ResourceChanged) error {
@@ -42,28 +62,4 @@ func (o *ObservedType) consumeEvent(ctx context.Context) error {
 		err := o.system.observer.Digest(ctx, e)
 		return err
 	}
-}
-
-type TypeAspect struct {
-	observer   *ObservedType
-	seenEvents eventCounter
-}
-
-func (a *TypeAspect) update() {
-	a.seenEvents++
-}
-
-func (a *TypeAspect) Fork() *ChangePoint {
-	return &ChangePoint{
-		aspect: a,
-		origin: a.seenEvents,
-	}
-}
-
-func (a *TypeAspect) events() eventCounter {
-	return a.seenEvents
-}
-
-func (a *TypeAspect) consumeEvent(ctx context.Context) error {
-	return a.observer.consumeEvent(ctx)
 }
