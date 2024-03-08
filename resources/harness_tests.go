@@ -64,16 +64,6 @@ func WithTestSubsystem(t *testing.T, parentContext context.Context) *TestSubsyst
 		},
 		Logger:   msg,
 		treeRoot: root,
-		System: &directSystem{
-			storeController,
-		},
+		System:   SystemWithController(storeController),
 	}
-}
-
-type directSystem struct {
-	controller *Controller
-}
-
-func (d *directSystem) Storage(ctx context.Context) (Storage, error) {
-	return d.controller.Client(), nil
 }

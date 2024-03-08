@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"github.com/meschbach/plaid/controllers/filewatch/fsn"
 	"github.com/meschbach/plaid/internal/plaid/controllers/buildrun"
 	localexec "github.com/meschbach/plaid/internal/plaid/controllers/exec/local"
 	"github.com/meschbach/plaid/internal/plaid/controllers/logdrain"
@@ -46,9 +47,14 @@ func (b *bundledServices) Serve(ctx context.Context) error {
 }
 
 func (b *bundledServices) attachV0_2_0() {
+	resourceSystem := resources.SystemWithController(b.resources)
+
 	loggingSystem, loggingRoot := logdrain.NewLogDrainSystem(b.resources)
 	b.loggingConfig = loggingSystem
 	b.Supervisor.Add(loggingRoot)
+
+	fileWatchSubtree := fsn.NewFileWatchSystem(resourceSystem)
+	b.Supervisor.Add(fileWatchSubtree)
 
 	//todo: this should probably be sucked in since there are tie-ins with the controll and resources
 	localProcSupervisors := suture.NewSimple("local-exec-procs")
