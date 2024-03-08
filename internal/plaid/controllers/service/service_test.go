@@ -34,7 +34,7 @@ func TestServiceWithNoDependencies(t *testing.T) {
 		require.NoError(t, store.Create(ctx, serviceRef, spec))
 
 		t.Run("Then a new command should be created", func(t *testing.T) {
-			createStatusChange.Wait(ctx)
+			createStatusChange.Wait(t, ctx)
 			status := optest.MustGetStatus[Alpha1Status](plaid, serviceRef)
 			assert.False(t, status.Ready, "must not be ready %#v", status)
 			assert.Equal(t, Running, status.Run.State, "must be in a running state")
@@ -49,7 +49,7 @@ func TestServiceWithNoDependencies(t *testing.T) {
 					Healthy: true,
 				})
 
-				invocationFinished.WaitFor(ctx, func(ctx context.Context) bool {
+				invocationFinished.WaitFor(t, ctx, func(ctx context.Context) bool {
 					status := optest.MustGetStatus[Alpha1Status](plaid, serviceRef)
 					return status.Ready
 				})
@@ -86,7 +86,7 @@ func TestServiceWithDependencies(t *testing.T) {
 		require.NoError(t, store.Create(ctx, serviceRef, spec))
 
 		t.Run("When the dependency does not exist", func(t *testing.T) {
-			createStatusChange.Wait(ctx)
+			createStatusChange.Wait(t, ctx)
 			status := optest.MustGetStatus[Alpha1Status](plaid, serviceRef)
 			assert.False(t, status.Ready, "must not be ready %#v", status)
 			if assert.Len(t, status.Dependencies, 1) {

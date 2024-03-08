@@ -33,6 +33,12 @@ func (d *ResourceService) Get(ctx context.Context, in *reswire.GetIn) (*reswire.
 	}, err
 }
 
+func (d *ResourceService) Update(ctx context.Context, in *reswire.UpdateIn) (*reswire.UpdateOut, error) {
+	ref := reswire.InternalizeMeta(in.Target)
+	exists, err := d.client.UpdateStatusBytes(ctx, ref, in.Spec)
+	return &reswire.UpdateOut{Exists: exists}, err
+}
+
 func (d *ResourceService) GetStatus(ctx context.Context, in *reswire.GetStatusIn) (*reswire.GetStatusOut, error) {
 	data, exists, err := d.client.GetStatusBytes(ctx, reswire.InternalizeMeta(in.Target))
 	return &reswire.GetStatusOut{

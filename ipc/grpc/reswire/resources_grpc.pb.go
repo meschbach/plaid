@@ -21,6 +21,7 @@ type ResourceControllerClient interface {
 	Create(ctx context.Context, in *CreateResourceIn, opts ...grpc.CallOption) (*CreateResourceOut, error)
 	Delete(ctx context.Context, in *DeleteResourceIn, opts ...grpc.CallOption) (*DeleteResourceOut, error)
 	Get(ctx context.Context, in *GetIn, opts ...grpc.CallOption) (*GetOut, error)
+	Update(ctx context.Context, in *UpdateIn, opts ...grpc.CallOption) (*UpdateOut, error)
 	GetStatus(ctx context.Context, in *GetStatusIn, opts ...grpc.CallOption) (*GetStatusOut, error)
 	UpdateStatus(ctx context.Context, in *UpdateStatusIn, opts ...grpc.CallOption) (*UpdateStatusOut, error)
 	GetEvents(ctx context.Context, in *GetEventsIn, opts ...grpc.CallOption) (*GetEventsOut, error)
@@ -58,6 +59,15 @@ func (c *resourceControllerClient) Delete(ctx context.Context, in *DeleteResourc
 func (c *resourceControllerClient) Get(ctx context.Context, in *GetIn, opts ...grpc.CallOption) (*GetOut, error) {
 	out := new(GetOut)
 	err := c.cc.Invoke(ctx, "/reswire.ResourceController/Get", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *resourceControllerClient) Update(ctx context.Context, in *UpdateIn, opts ...grpc.CallOption) (*UpdateOut, error) {
+	out := new(UpdateOut)
+	err := c.cc.Invoke(ctx, "/reswire.ResourceController/Update", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -147,6 +157,7 @@ type ResourceControllerServer interface {
 	Create(context.Context, *CreateResourceIn) (*CreateResourceOut, error)
 	Delete(context.Context, *DeleteResourceIn) (*DeleteResourceOut, error)
 	Get(context.Context, *GetIn) (*GetOut, error)
+	Update(context.Context, *UpdateIn) (*UpdateOut, error)
 	GetStatus(context.Context, *GetStatusIn) (*GetStatusOut, error)
 	UpdateStatus(context.Context, *UpdateStatusIn) (*UpdateStatusOut, error)
 	GetEvents(context.Context, *GetEventsIn) (*GetEventsOut, error)
@@ -168,6 +179,9 @@ func (UnimplementedResourceControllerServer) Delete(context.Context, *DeleteReso
 }
 func (UnimplementedResourceControllerServer) Get(context.Context, *GetIn) (*GetOut, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
+}
+func (UnimplementedResourceControllerServer) Update(context.Context, *UpdateIn) (*UpdateOut, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Update not implemented")
 }
 func (UnimplementedResourceControllerServer) GetStatus(context.Context, *GetStatusIn) (*GetStatusOut, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetStatus not implemented")
@@ -250,6 +264,24 @@ func _ResourceController_Get_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ResourceControllerServer).Get(ctx, req.(*GetIn))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ResourceController_Update_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateIn)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ResourceControllerServer).Update(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/reswire.ResourceController/Update",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ResourceControllerServer).Update(ctx, req.(*UpdateIn))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -388,6 +420,10 @@ var ResourceController_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Get",
 			Handler:    _ResourceController_Get_Handler,
+		},
+		{
+			MethodName: "Update",
+			Handler:    _ResourceController_Update_Handler,
 		},
 		{
 			MethodName: "GetStatus",

@@ -31,14 +31,14 @@ func TestFileWatch(t *testing.T) {
 				AbsolutePath: examplePath,
 			})
 
-			statusChange.Wait(ctx)
+			statusChange.Wait(t, ctx)
 
 			t.Run("And the root path changes", func(t *testing.T) {
 				updated := time.Now()
 				fsPush := target.Status.Fork()
 				require.NoError(t, fake.FileModified(ctx, examplePath, updated))
 
-				fsPush.Wait(ctx)
+				fsPush.Wait(t, ctx)
 
 				result := optest.MustGetStatus[filewatch.Alpha1Status](sys, meta)
 				if assert.NotNil(t, result.LastChange) {
@@ -51,7 +51,7 @@ func TestFileWatch(t *testing.T) {
 				updated := time.Now()
 				require.NoError(t, fake.FileModified(ctx, examplePath+"/subpath/file", updated))
 
-				fsSubpathPush.Wait(ctx)
+				fsSubpathPush.Wait(t, ctx)
 				result := optest.MustGetStatus[filewatch.Alpha1Status](sys, meta)
 				if assert.NotNil(t, result.LastChange) {
 					assert.True(t, result.LastChange.Equal(updated) || result.LastChange.After(updated), "must be equal or after the updated time")

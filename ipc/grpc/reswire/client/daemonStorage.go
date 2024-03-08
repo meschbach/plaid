@@ -33,6 +33,20 @@ func (g *daemonStorage) Get(ctx context.Context, ref resources.Meta, spec any) (
 	return g.client.Get(ctx, ref, spec)
 }
 
+func (g *daemonStorage) Update(ctx context.Context, ref resources.Meta, spec any) (bool, error) {
+	wireRef := reswire.MetaToWire(ref)
+	asBytes, err := json.Marshal(spec)
+	if err != nil {
+		return false, err
+	}
+
+	out, err := g.wire.Update(ctx, &reswire.UpdateIn{
+		Target: wireRef,
+		Spec:   asBytes,
+	})
+	return out.Exists, err
+}
+
 func (g *daemonStorage) GetStatus(ctx context.Context, ref resources.Meta, status any) (bool, error) {
 	return g.client.GetStatus(ctx, ref, status)
 }

@@ -9,6 +9,7 @@ service ResourceController {
   rpc Create(CreateResourceIn) returns (CreateResourceOut) {}
   rpc Delete(DeleteResourceIn) returns (DeleteResourceOut) {}
   rpc Get(GetIn) returns (GetOut){}
+  rpc Update(UpdateIn) returns (UpdateOut){}
   rpc GetStatus(GetStatusIn) returns (GetStatusOut) {}
   rpc UpdateStatus(UpdateStatusIn) returns (UpdateStatusOut) {}
   rpc GetEvents(GetEventsIn) returns (GetEventsOut) {}
@@ -55,6 +56,15 @@ message GetIn {
 message GetOut {
   bool exists = 1;
   bytes spec = 2;
+}
+
+message UpdateIn {
+  Meta target = 1;
+  bytes spec = 2;
+}
+
+message UpdateOut {
+  bool exists = 1;
 }
 
 message GetStatusIn {
