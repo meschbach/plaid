@@ -35,7 +35,7 @@ func (s *System) MustUpdateStatus(ctx context.Context, ref resources.Meta, statu
 	require.True(s.t, exists, "expected to exist but did not")
 }
 
-func (s *System) Run(name string, test func(t *testing.T, s *System, ctx context.Context)) {
+func (s *System) Run(name string, test func(t *testing.T, plaid *System, ctx context.Context)) {
 	s.t.Run(name, func(t *testing.T) {
 		ctx, done := context.WithCancel(s.root)
 		t.Cleanup(done)
