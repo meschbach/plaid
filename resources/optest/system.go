@@ -15,8 +15,8 @@ type System struct {
 	Legacy        *resources.TestSubsystem
 	storage       resources.Storage
 	observer      resources.Watcher
-	observers     *resources.MetaContainer[ObservedResource]
-	typeObservers *resources.TypeContainer[ObservedType]
+	observers     *resources.MetaContainer[Observer]
+	typeObservers *resources.TypeContainer[Observer]
 }
 
 func (s *System) MustCreate(ctx context.Context, ref resources.Meta, spec any) {
@@ -69,8 +69,8 @@ func New(t *testing.T) (context.Context, *System) {
 		Legacy:        legacy,
 		storage:       legacy.Store,
 		observer:      systemObserver,
-		observers:     resources.NewMetaContainer[ObservedResource](),
-		typeObservers: resources.NewTypeContainer[ObservedType](),
+		observers:     resources.NewMetaContainer[Observer](),
+		typeObservers: resources.NewTypeContainer[Observer](),
 	}
 	return ctx, sys
 }
@@ -91,7 +91,7 @@ func From(t *testing.T, parent context.Context, s resources.System) *System {
 		Legacy:        nil,
 		storage:       storage,
 		observer:      watcher,
-		observers:     resources.NewMetaContainer[ObservedResource](),
-		typeObservers: resources.NewTypeContainer[ObservedType](),
+		observers:     resources.NewMetaContainer[Observer](),
+		typeObservers: resources.NewTypeContainer[Observer](),
 	}
 }

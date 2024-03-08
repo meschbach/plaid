@@ -23,7 +23,7 @@ func MustGetSpec[Spec any](s *System, ref resources.Meta) Spec {
 	return out
 }
 
-func MustUpdateStatusAndWait[Status any](s *System, change *Aspect, update resources.Meta, status Status) {
+func MustUpdateStatusAndWait[Status any](s *System, change *ObserverAspect, update resources.Meta, status Status) {
 	point := change.Fork()
 	MustUpdateStatus[Status](s, update, status)
 	point.Wait(s.t, s.root)
@@ -39,7 +39,7 @@ func MustUpdateStatus[Status any](s *System, update resources.Meta, status Statu
 	MustUpdateStatusRaw(s.t, s.root, s.Legacy.Store, update, status)
 }
 
-func (s *System) MustUpdateAndWait(changePoint *Aspect, which resources.Meta, newSpec interface{}) {
+func (s *System) MustUpdateAndWait(changePoint *ObserverAspect, which resources.Meta, newSpec interface{}) {
 	changeWatcher := changePoint.Fork()
 	exists, err := s.storage.Update(s.root, which, newSpec)
 	require.NoError(s.t, err)

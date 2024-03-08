@@ -66,12 +66,10 @@ func TestSystem(t *testing.T) {
 
 		clientSide.Run("When updating status of an exiting resource", func(t *testing.T, clientSide *optest.System, ctx context.Context) {
 			status := exampleStatus{Response: "destroyed systems"}
-			anyChange := observer.AnyEvent.Fork()
-			statusChange := observer.UpdateStatus.Fork()
+			statusChange := observer.Update.Fork()
 			clientSide.MustUpdateStatus(ctx, ref, status)
 
-			anyChange.Wait(t, ctx)
-			statusChange.Wait(t, ctx)
+			statusChange.Wait(t, ctx, "status update should have been fired")
 		})
 
 		clientSide.Run("When the resource is deleted", func(t *testing.T, clientSide *optest.System, ctx context.Context) {
