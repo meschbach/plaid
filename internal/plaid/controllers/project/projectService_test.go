@@ -43,13 +43,13 @@ func TestProjectAlpha1(t *testing.T) {
 			plaid.MustCreate(ctx, projectRef, projectSpec)
 
 			plaid.Run("Then the initial status is setup", func(t *testing.T, plaid *optest.System, ctx context.Context) {
-				createStatusChange.Wait(ctx)
+				createStatusChange.Wait(t, ctx)
 				status := optest.MustGetStatus[Alpha1Status](plaid, projectRef)
 				assert.False(t, status.Ready, "initial status must not be ready")
 			})
 
 			plaid.Run("Then a service is Created", func(t *testing.T, s *optest.System, ctx context.Context) {
-				createStatusChange.Wait(ctx)
+				createStatusChange.Wait(t, ctx)
 
 				status := optest.MustGetStatus[Alpha1Status](plaid, projectRef)
 				maybeServiceRef := status.Daemons[0].Current
@@ -91,7 +91,7 @@ func TestProjectAlpha1(t *testing.T) {
 						Ready: true,
 					})
 
-					serviceUpdated.WaitFor(ctx, func(ctx context.Context) bool {
+					serviceUpdated.WaitFor(t, ctx, func(ctx context.Context) bool {
 						projectStatus := optest.MustGetStatus[Alpha1Status](plaid, projectRef)
 						return projectStatus.Ready
 					})

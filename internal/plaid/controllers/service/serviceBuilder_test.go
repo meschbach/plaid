@@ -37,7 +37,7 @@ func TestServiceWithBuilderStep(t *testing.T) {
 		require.NoError(t, store.Create(ctx, serviceRef, spec))
 
 		t.Run("When the service is created created", func(t *testing.T) {
-			statusCreateChange.Wait(ctx)
+			statusCreateChange.Wait(t, ctx)
 			status := optest.MustGetStatus[Alpha1Status](plaid, serviceRef)
 			assert.Equal(t, "starting", status.Build.State, "then the builder must be created")
 			require.NotNil(t, status.Build.Ref, "then the build must select the reference")
@@ -52,7 +52,7 @@ func TestServiceWithBuilderStep(t *testing.T) {
 					Started: &startTime,
 				})
 
-				started.WaitFor(ctx, func(ctx context.Context) bool {
+				started.WaitFor(t, ctx, func(ctx context.Context) bool {
 					status := optest.MustGetStatus[Alpha1Status](plaid, serviceRef)
 					return status.Build.State == "running"
 				})
@@ -74,7 +74,7 @@ func TestServiceWithBuilderStep(t *testing.T) {
 					Healthy:    true,
 				})
 
-				finished.WaitFor(ctx, func(ctx context.Context) bool {
+				finished.WaitFor(t, ctx, func(ctx context.Context) bool {
 					status := optest.MustGetStatus[Alpha1Status](plaid, serviceRef)
 					return status.Build.State == "finished"
 				})

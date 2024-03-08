@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/meschbach/plaid/resources"
 	"github.com/stretchr/testify/require"
+	"testing"
 )
 
 type ObservedResource struct {
@@ -36,39 +37,52 @@ func (o *ObservedResource) consumeEvent(ctx context.Context) error {
 }
 
 type ResourceAspect struct {
-	observer *ObservedResource
-	events   uint64
+	observer      *ObservedResource
+	changedEvents eventCounter
 }
 
 func (a *ResourceAspect) update() {
-	a.events++
+	a.changedEvents++
 }
 
-func (a *ResourceAspect) Fork() *ResourceChangePoint {
-	return &ResourceChangePoint{
+func (a *ResourceAspect) Fork() *ChangePoint {
+	return &ChangePoint{
 		aspect: a,
-		origin: a.events,
+		origin: a.changedEvents,
 	}
+}
+
+func (a *ResourceAspect) events() eventCounter {
+	return a.changedEvents
 }
 
 func (a *ResourceAspect) consumeEvent(ctx context.Context) error {
 	return a.observer.consumeEvent(ctx)
 }
 
-type ResourceChangePoint struct {
-	aspect *ResourceAspect
-	//origin is the event the change point was created at
-	origin uint64
+type eventCounter uint64
+type Aspect interface {
+	consumeEvent(ctx context.Context) error
+	events() eventCounter
 }
 
-func (r *ResourceChangePoint) Wait(ctx context.Context) {
-	for r.origin >= r.aspect.events {
-		require.NoError(r.aspect.observer.system.t, r.aspect.consumeEvent(ctx))
+type ChangePoint struct {
+	aspect Aspect
+	origin eventCounter
+}
+
+func (r *ChangePoint) Wait(t *testing.T, ctx context.Context) {
+	for r.origin >= r.aspect.events() {
+		err := r.aspect.consumeEvent(ctx)
+		if err != nil {
+			require.NoError(t, err)
+			return
+		}
 	}
 }
 
-func (r *ResourceChangePoint) WaitFor(ctx context.Context, satisfied func(ctx context.Context) bool) {
+func (r *ChangePoint) WaitFor(t *testing.T, ctx context.Context, satisfied func(ctx context.Context) bool) {
 	for !satisfied(ctx) {
-		r.Wait(ctx)
+		r.Wait(t, ctx)
 	}
 }

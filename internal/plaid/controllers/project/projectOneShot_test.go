@@ -39,7 +39,7 @@ func TestProjectAlpha1OneShot(t *testing.T) {
 			plaid.MustCreate(ctx, projectRef, projectSpec)
 
 			t.Run("Then a buildrun is Created", func(t *testing.T) {
-				creationStatus.Wait(ctx)
+				creationStatus.Wait(t, ctx)
 				projectStatus := optest.MustGetStatus[Alpha1Status](plaid, projectRef)
 				maybeOneShotRef := projectStatus.OneShots[0].Ref
 				if !assert.NotNil(t, maybeOneShotRef, "buildrun ref must not be nil") {
@@ -59,7 +59,7 @@ func TestProjectAlpha1OneShot(t *testing.T) {
 			})
 
 			t.Run("And the buildrun exits for both build and run", func(t *testing.T) {
-				creationStatus.Wait(ctx)
+				creationStatus.Wait(t, ctx)
 				projectStatus := optest.MustGetStatus[Alpha1Status](plaid, projectRef)
 				maybeOneShotRef := projectStatus.OneShots[0].Ref
 				if !assert.NotNil(t, maybeOneShotRef, "buildrun ref must not be nil") {
@@ -71,7 +71,7 @@ func TestProjectAlpha1OneShot(t *testing.T) {
 				MustFinishBuildRunRun(t, ctx, plaid.Legacy.Store, oneShotRef, 0)
 
 				t.Run("Then the exit is noted in the project status", func(t *testing.T) {
-					oneShotFinished.WaitFor(ctx, func(ctx context.Context) bool {
+					oneShotFinished.WaitFor(t, ctx, func(ctx context.Context) bool {
 						status := optest.MustGetStatus[Alpha1Status](plaid, projectRef)
 						return status.Ready
 					})

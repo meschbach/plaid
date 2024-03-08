@@ -26,7 +26,7 @@ func MustGetSpec[Spec any](s *System, ref resources.Meta) Spec {
 func MustUpdateStatusAndWait[Status any](s *System, change *ResourceAspect, update resources.Meta, status Status) {
 	point := change.Fork()
 	MustUpdateStatus[Status](s, update, status)
-	point.Wait(s.root)
+	point.Wait(s.t, s.root)
 }
 
 func MustUpdateStatusRaw(t *testing.T, ctx context.Context, store *resources.Client, ref resources.Meta, status any) {
@@ -44,5 +44,5 @@ func (s *System) MustUpdateAndWait(changePoint *ResourceAspect, which resources.
 	exists, err := s.storage.Update(s.root, which, newSpec)
 	require.NoError(s.t, err)
 	require.True(s.t, exists)
-	changeWatcher.Wait(s.root)
+	changeWatcher.Wait(s.t, s.root)
 }

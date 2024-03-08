@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/meschbach/plaid/resources"
-	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 // todo: a lot of the aspect things could probably be reused/DRYed
@@ -47,44 +45,25 @@ func (o *ObservedType) consumeEvent(ctx context.Context) error {
 }
 
 type TypeAspect struct {
-	observer *ObservedType
-	events   uint64
+	observer   *ObservedType
+	seenEvents eventCounter
 }
 
 func (a *TypeAspect) update() {
-	a.events++
+	a.seenEvents++
 }
 
-func (a *TypeAspect) Fork() *TypeChangePoint {
-	return &TypeChangePoint{
+func (a *TypeAspect) Fork() *ChangePoint {
+	return &ChangePoint{
 		aspect: a,
-		origin: a.events,
+		origin: a.seenEvents,
 	}
+}
+
+func (a *TypeAspect) events() eventCounter {
+	return a.seenEvents
 }
 
 func (a *TypeAspect) consumeEvent(ctx context.Context) error {
 	return a.observer.consumeEvent(ctx)
-}
-
-type TypeChangePoint struct {
-	aspect *TypeAspect
-	//origin is the event the change point was created at
-	origin uint64
-}
-
-func (r *TypeChangePoint) Wait(t *testing.T, ctx context.Context) {
-	t.Helper()
-	for r.origin >= r.aspect.events {
-		err := r.aspect.consumeEvent(ctx)
-		if err != nil {
-			require.NoError(t, err)
-			return
-		}
-	}
-}
-
-func (r *TypeChangePoint) WaitFor(t *testing.T, ctx context.Context, satisfied func(ctx context.Context) bool) {
-	for !satisfied(ctx) {
-		r.Wait(t, ctx)
-	}
 }
