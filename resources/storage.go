@@ -10,6 +10,9 @@ type Storage interface {
 	Create(ctx context.Context, ref Meta, spec any, opts ...CreateOpt) error
 	Delete(ctx context.Context, ref Meta) (bool, error)
 	Get(ctx context.Context, ref Meta, spec any) (bool, error)
+	//Update updates the specification for the given ref and propagates events out.
+	Update(ctx context.Context, ref Meta, spec any) (exists bool, problem error)
+
 	GetStatus(ctx context.Context, ref Meta, status any) (bool, error)
 	UpdateStatus(ctx context.Context, ref Meta, status any) (bool, error)
 	GetEvents(ctx context.Context, ref Meta, level EventLevel) ([]Event, bool, error)
