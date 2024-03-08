@@ -10,12 +10,15 @@ type ObservedResource struct {
 	system   *System
 	token    resources.WatchToken
 	AnyEvent *ResourceAspect
+	Spec     *ResourceAspect
 	Status   *ResourceAspect
 }
 
 func (o *ObservedResource) onResourceEvent(ctx context.Context, event resources.ResourceChanged) error {
 	o.AnyEvent.update()
 	switch event.Operation {
+	case resources.UpdatedEvent:
+		o.Spec.update()
 	case resources.StatusUpdated:
 		o.Status.update()
 	default:

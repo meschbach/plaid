@@ -38,3 +38,11 @@ func MustUpdateStatusRaw(t *testing.T, ctx context.Context, store *resources.Cli
 func MustUpdateStatus[Status any](s *System, update resources.Meta, status Status) {
 	MustUpdateStatusRaw(s.t, s.root, s.Legacy.Store, update, status)
 }
+
+func (s *System) MustUpdateAndWait(changePoint *ResourceAspect, which resources.Meta, newSpec interface{}) {
+	changeWatcher := changePoint.Fork()
+	exists, err := s.storage.Update(s.root, which, newSpec)
+	require.NoError(s.t, err)
+	require.True(s.t, exists)
+	changeWatcher.Wait(s.root)
+}

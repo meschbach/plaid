@@ -25,6 +25,7 @@ func (s *System) Observe(ctx context.Context, ref resources.Meta) *ObservedResou
 			system: s,
 		}
 		o.AnyEvent = &ResourceAspect{observer: o}
+		o.Spec = &ResourceAspect{observer: o}
 		o.Status = &ResourceAspect{observer: o}
 		return o
 	})
