@@ -15,6 +15,7 @@ const (
 	daemonWait daemonNext = iota
 	daemonCreate
 	daemonFinished
+	daemonUpdate
 )
 
 func (d daemonNext) String() string {
@@ -25,6 +26,8 @@ func (d daemonNext) String() string {
 		return "daemon-create"
 	case daemonFinished:
 		return "daemon-finished"
+	case daemonUpdate:
+		return "daemon-update"
 	default:
 		return fmt.Sprintf("unknown daemonNext %d", d)
 	}
@@ -43,7 +46,7 @@ func (d *daemonState) toStatus(spec Alpha1DaemonSpec, status *Alpha1DaemonStatus
 	}
 }
 
-func (d *daemonState) decideNextStep(ctx context.Context, env tooling.Env) (daemonNext, error) {
+func (d *daemonState) decideNextStep(ctx context.Context, env tooling.Env, restartToken string) (daemonNext, error) {
 	var procState service.Alpha1Status
 	step, err := d.service.Decide(ctx, env, &procState)
 	if err != nil {
@@ -54,6 +57,9 @@ func (d *daemonState) decideNextStep(ctx context.Context, env tooling.Env) (daem
 		return daemonCreate, nil
 	case tooling.SubresourceExists:
 		d.targetReady = procState.Ready
+		if procState.RunningToken != restartToken {
+			return daemonUpdate, nil
+		}
 	}
 	return daemonWait, nil
 }
@@ -85,6 +91,27 @@ func (d *daemonState) create(ctx context.Context, env tooling.Env, spec Alpha1Sp
 		Name: which.Name + daemonSpec.Name + "-" + resources.GenSuffix(4),
 	}
 	return d.service.Create(ctx, env, ref, resSpec)
+}
+
+func (d *daemonState) update(ctx context.Context, env tooling.Env, spec Alpha1Spec, daemonSpec Alpha1DaemonSpec, restartToken string) error {
+	//todo: probably should just update all of it
+	var serviceSpec service.Alpha1Spec
+	exists, err := env.Storage.Get(ctx, d.service.Ref, &serviceSpec)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return d.create(ctx, env, spec, daemonSpec)
+	}
+	serviceSpec.RestartToken = restartToken
+	exists, err = env.Storage.Update(ctx, d.service.Ref, serviceSpec)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return d.create(ctx, env, spec, daemonSpec)
+	}
+	return nil
 }
 
 func (d *daemonState) delete(ctx context.Context, env tooling.Env) error {

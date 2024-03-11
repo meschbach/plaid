@@ -38,7 +38,7 @@ func TestDaemonState(t *testing.T) {
 		exampleSpec := Alpha1Spec{}
 
 		t.Run("When asked for next steps", func(t *testing.T) {
-			step, err := daemon.decideNextStep(testCtx, env)
+			step, err := daemon.decideNextStep(testCtx, env, "")
 			require.NoError(t, err)
 			assert.Equal(t, daemonCreate, step, "Then we will create our resources")
 		})
@@ -46,7 +46,7 @@ func TestDaemonState(t *testing.T) {
 		t.Run("When Created", func(t *testing.T) {
 			err := daemon.create(testCtx, env, exampleSpec, exampleDaemonSpec)
 			require.NoError(t, err)
-			step, err := daemon.decideNextStep(testCtx, env)
+			step, err := daemon.decideNextStep(testCtx, env, "")
 			require.NoError(t, err)
 
 			assert.Equal(t, daemonWait, step, "Then the next step is wait, got %s", step)
@@ -63,7 +63,7 @@ func TestDaemonState(t *testing.T) {
 			require.NoError(t, err, "failed to update status to ready")
 			require.True(t, exists, "must exist")
 
-			step, err := daemon.decideNextStep(testCtx, env)
+			step, err := daemon.decideNextStep(testCtx, env, "")
 			require.NoError(t, err)
 
 			assert.Equal(t, daemonWait, step, "Then the next step is to wait")

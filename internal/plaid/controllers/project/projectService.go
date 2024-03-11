@@ -42,6 +42,8 @@ type Alpha1Status struct {
 	Done   bool   `json:"done"`
 	Result string `json:"result"`
 	Ready  bool   `json:"ready"`
+	//RestartToken is the current restart token for the given project.
+	RestartToken string `json:"restart-token"`
 }
 
 const Alpha1StateCreating = "creating"

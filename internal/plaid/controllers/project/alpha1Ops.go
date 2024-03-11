@@ -39,7 +39,9 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 	))
 	defer span.End()
 
-	status := Alpha1Status{}
+	status := Alpha1Status{
+		RestartToken: rt.restartToken,
+	}
 
 	//for each one shot
 	env := tooling.Env{
@@ -112,7 +114,7 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 		}
 
 		daemonStatus := &Alpha1DaemonStatus{}
-		if next, err := subController.decideNextStep(ctx, env); err != nil {
+		if next, err := subController.decideNextStep(ctx, env, rt.restartToken); err != nil {
 			span.SetStatus(codes.Error, "failure while determine daemon state")
 			span.RecordError(err)
 			daemonErrors = append(daemonErrors, err)
@@ -139,11 +141,22 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 			case daemonFinished:
 				span.AddEvent("daemon-finished")
 				//todo: restart?
+			case daemonUpdate:
+				err := subController.update(ctx, env, spec, daemonSpec, rt.restartToken)
+				if err != nil {
+					span.SetStatus(codes.Error, "failed to update daemon")
+					span.RecordError(err)
+					daemonErrors = append(daemonErrors, err)
+					continue
+				}
+			default:
+				panic("unexpected daemon condition")
 			}
 			status.Daemons = append(status.Daemons, daemonStatus)
 		}
 	}
 	span.SetAttributes(attribute.Bool("daemons.ready", allDaemonsReady))
+	status.RestartToken = rt.restartToken
 
 	//todo: clean up tests and put this under test
 	status.Ready = incompleteOneShots == 0 && allDaemonsReady
@@ -172,4 +185,7 @@ type state struct {
 	bridge   *operator.KindBridgeState
 	oneShots map[string]*oneShotState
 	daemons  map[string]*daemonState
+
+	//restartToken is the current token for restarting associated services.
+	restartToken string
 }

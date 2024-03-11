@@ -28,6 +28,9 @@ type Alpha1Spec struct {
 	Run          exec.TemplateAlpha1Spec  `json:"run"`
 	// Readiness defines a probe to determine if the system is ready
 	Readiness *probes.TemplateAlpha1Spec `json:"readiness,omitempty"`
+	// When RestartToken changes a new build will occur (if one exists) and if successful will stop the existing process
+	// and start the new one.
+	RestartToken string `json:"restart-token"`
 }
 
 type Alpha1Status struct {
@@ -35,6 +38,7 @@ type Alpha1Status struct {
 	Build        Alpha1BuildStatus        `json:"build,omitempty"`
 	Run          Alpha1RunStatus          `json:"run"`
 	Ready        bool                     `json:"ready"`
+	RunningToken string                   `json:"running-token"`
 }
 
 type Alpha1StatusDependency struct {
