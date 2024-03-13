@@ -132,5 +132,15 @@ func TestSimpleLifecycle(t *testing.T) {
 				})
 			}
 		})
+
+		plaid.Run("When deleting the service", func(t *testing.T, plaid *optest.System, ctx context.Context) {
+			beforeDelete := optest.MustGetStatus[Status](plaid, ref)
+
+			serviceDeleted := refWatch.Delete.Fork()
+			stableDelete := plaid.Observe(ctx, *beforeDelete.Stable.Service).Delete.Fork()
+			plaid.MustDelete(ctx, ref)
+			serviceDeleted.Wait(t, ctx, "service must be deleted")
+			stableDelete.Wait(t, ctx, "stable should be deleted")
+		})
 	})
 }

@@ -71,7 +71,31 @@ func (o *Ops) UpdateState(ctx context.Context, which resources.Meta, rt *State) 
 }
 
 func (o *Ops) Delete(ctx context.Context, which resources.Meta, rt *State) error {
-	return nil
+	env := tooling.Env{
+		Subject:   which,
+		Storage:   o.storage,
+		Watcher:   o.observer,
+		Reconcile: rt.bridge.UpdateState,
+	}
+
+	var problems []error
+	if rt.next != nil {
+		problems = append(problems, rt.next.delete(ctx, env))
+		rt.next = nil
+	}
+	if rt.stable != nil {
+		problems = append(problems, rt.stable.delete(ctx, env))
+		rt.stable = nil
+	}
+	for _, stopping := range rt.stopping {
+		problems = append(problems, stopping.delete(ctx, env))
+	}
+	rt.stopping = nil
+	for _, old := range rt.old {
+		problems = append(problems, old.delete(ctx, env))
+	}
+	rt.old = nil
+	return errors.Join(problems...)
 }
 
 func (o *Ops) Status(ctx context.Context, rt *State) Status {

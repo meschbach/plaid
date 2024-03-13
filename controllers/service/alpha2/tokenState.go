@@ -119,3 +119,11 @@ func (t *tokenState) toStoppingStatus() TokenStatus {
 		Service: &t.run.Ref,
 	}
 }
+
+func (t *tokenState) delete(ctx context.Context, env tooling.Env) error {
+	if t.run.Created {
+		_, err := env.Storage.Delete(ctx, t.run.Ref)
+		return err
+	}
+	return nil
+}
