@@ -3,8 +3,8 @@ package project
 import (
 	"context"
 	"github.com/go-faker/faker/v4"
+	"github.com/meschbach/plaid/controllers/service/alpha2"
 	"github.com/meschbach/plaid/controllers/tooling"
-	"github.com/meschbach/plaid/internal/plaid/controllers/service"
 	"github.com/meschbach/plaid/resources"
 	"github.com/meschbach/plaid/resources/optest"
 	"github.com/stretchr/testify/assert"
@@ -54,8 +54,11 @@ func TestDaemonState(t *testing.T) {
 		})
 
 		plaid.Run("When daemon has become ready", func(t *testing.T, plaid *optest.System, ctx context.Context) {
-			plaid.MustUpdateStatus(ctx, daemon.service.Ref, service.Alpha1Status{
-				Ready: true,
+			plaid.MustUpdateStatus(ctx, daemon.service.Ref, alpha2.Status{
+				LatestToken: "",
+				Stable: &alpha2.TokenStatus{
+					Token: "",
+				},
 			})
 
 			step, err := daemon.decideNextStep(ctx, envFrom(plaid, exampleProject), "")

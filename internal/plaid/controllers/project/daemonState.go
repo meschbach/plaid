@@ -3,9 +3,9 @@ package project
 import (
 	"context"
 	"fmt"
+	"github.com/meschbach/plaid/controllers/service/alpha2"
 	"github.com/meschbach/plaid/controllers/tooling"
 	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
-	"github.com/meschbach/plaid/internal/plaid/controllers/service"
 	"github.com/meschbach/plaid/resources"
 )
 
@@ -34,7 +34,7 @@ func (d daemonNext) String() string {
 }
 
 type daemonState struct {
-	service     tooling.Subresource[service.Alpha1Status]
+	service     tooling.Subresource[alpha2.Status]
 	targetReady bool
 }
 
@@ -47,7 +47,7 @@ func (d *daemonState) toStatus(spec Alpha1DaemonSpec, status *Alpha1DaemonStatus
 }
 
 func (d *daemonState) decideNextStep(ctx context.Context, env tooling.Env, restartToken string) (daemonNext, error) {
-	var procState service.Alpha1Status
+	var procState alpha2.Status
 	step, err := d.service.Decide(ctx, env, &procState)
 	if err != nil {
 		return daemonWait, err
@@ -56,8 +56,9 @@ func (d *daemonState) decideNextStep(ctx context.Context, env tooling.Env, resta
 	case tooling.SubresourceCreate:
 		return daemonCreate, nil
 	case tooling.SubresourceExists:
-		d.targetReady = procState.Ready
-		if procState.RunningToken != restartToken {
+		//todo: alpha2 should export readiness
+		d.targetReady = procState.Stable != nil && procState.Stable.Token == restartToken
+		if procState.LatestToken != restartToken {
 			return daemonUpdate, nil
 		}
 	}
@@ -67,13 +68,14 @@ func (d *daemonState) decideNextStep(ctx context.Context, env tooling.Env, resta
 func (d *daemonState) create(ctx context.Context, env tooling.Env, spec Alpha1Spec, daemonSpec Alpha1DaemonSpec) error {
 	which := env.Subject
 
-	resSpec := service.Alpha1Spec{
+	resSpec := alpha2.Spec{
+		Dependencies: make([]resources.Meta, len(daemonSpec.Requires)),
 		Run: exec.TemplateAlpha1Spec{
 			Command:    daemonSpec.Run.Command,
 			WorkingDir: spec.BaseDirectory,
 		},
-		Dependencies: make([]resources.Meta, len(daemonSpec.Requires)),
 		Readiness:    daemonSpec.Readiness,
+		RestartToken: spec.RestartToken,
 	}
 	if daemonSpec.Build != nil {
 		resSpec.Build = &exec.TemplateAlpha1Spec{
@@ -87,7 +89,7 @@ func (d *daemonState) create(ctx context.Context, env tooling.Env, spec Alpha1Sp
 	}
 
 	ref := resources.Meta{
-		Type: service.Alpha1,
+		Type: alpha2.Type,
 		Name: which.Name + daemonSpec.Name + "-" + resources.GenSuffix(4),
 	}
 	return d.service.Create(ctx, env, ref, resSpec)
@@ -95,7 +97,7 @@ func (d *daemonState) create(ctx context.Context, env tooling.Env, spec Alpha1Sp
 
 func (d *daemonState) update(ctx context.Context, env tooling.Env, spec Alpha1Spec, daemonSpec Alpha1DaemonSpec, restartToken string) error {
 	//todo: probably should just update all of it
-	var serviceSpec service.Alpha1Spec
+	var serviceSpec alpha2.Spec
 	exists, err := env.Storage.Get(ctx, d.service.Ref, &serviceSpec)
 	if err != nil {
 		return err

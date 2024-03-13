@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 	"github.com/go-faker/faker/v4"
+	"github.com/meschbach/plaid/controllers/service/alpha2"
 	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
 	"github.com/meschbach/plaid/internal/plaid/controllers/service"
 	"github.com/meschbach/plaid/resources"
@@ -83,12 +84,17 @@ func TestProjectAlpha1(t *testing.T) {
 
 				plaid.Run("When the service is ready", func(t *testing.T, s *optest.System, ctx context.Context) {
 					serviceUpdated := projectWatch.Status.Fork()
-					optest.MustUpdateStatusAndWait(plaid, projectWatch.Status, serviceRef, service.Alpha1Status{
-						Dependencies: nil,
-						Build: service.Alpha1BuildStatus{
-							State: Alpha1StateSuccess,
+					optest.MustUpdateStatusAndWait(plaid, projectWatch.Status, serviceRef, alpha2.Status{
+						LatestToken: "",
+						Stable: &alpha2.TokenStatus{
+							Token: "",
 						},
-						Ready: true,
+						//todo: these should probably be in TokenStatus
+						//Dependencies: nil,
+						//Build: service.Alpha1BuildStatus{
+						//	State: Alpha1StateSuccess,
+						//},
+						//Ready: true,
 					})
 
 					serviceUpdated.WaitFor(t, ctx, func(ctx context.Context) bool {
