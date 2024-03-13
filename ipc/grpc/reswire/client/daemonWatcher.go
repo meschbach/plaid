@@ -26,6 +26,20 @@ func (g *daemonWatcher) OnResource(ctx context.Context, ref resources.Meta, cons
 	return g.underlyingWatcher.OnResource(ctx, ref, g.pushOnQueue(consume))
 }
 
+func (g *daemonWatcher) OnResourceStatusChanged(ctx context.Context, ref resources.Meta, consume resources.OnResourceChanged) (resources.WatchToken, error) {
+	invoke := g.pushOnQueue(consume)
+	return g.underlyingWatcher.OnResource(ctx, ref, func(ctx context.Context, changed resources.ResourceChanged) error {
+		switch changed.Operation {
+		case resources.StatusUpdated:
+			return invoke(ctx, changed)
+		case resources.DeletedEvent:
+			return invoke(ctx, changed)
+		default:
+			return nil
+		}
+	})
+}
+
 func (g *daemonWatcher) Off(ctx context.Context, token resources.WatchToken) error {
 	return g.underlyingWatcher.Off(ctx, token)
 }
