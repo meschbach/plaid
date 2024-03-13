@@ -3,13 +3,14 @@ package optest
 import (
 	"context"
 	"github.com/meschbach/plaid/resources"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
 
 func MustGetStatus[Status any](s *System, ref resources.Meta) Status {
 	var out Status
-	exists, err := s.Legacy.Store.GetStatus(s.root, ref, &out)
+	exists, err := s.storage.GetStatus(s.root, ref, &out)
 	require.NoError(s.t, err, "failed to retrieve status of %s", ref)
 	require.True(s.t, exists, "resource %s was expected to exist and status retrieval but was not", ref)
 	return out
@@ -17,7 +18,7 @@ func MustGetStatus[Status any](s *System, ref resources.Meta) Status {
 
 func MustGetSpec[Spec any](s *System, ref resources.Meta) Spec {
 	var out Spec
-	exists, err := s.Legacy.Store.Get(s.root, ref, &out)
+	exists, err := s.storage.Get(s.root, ref, &out)
 	require.NoError(s.t, err, "failed to retrieve status of %s", ref)
 	require.True(s.t, exists, "resource %s was expected to exist and status retrieval but was not", ref)
 	return out
@@ -40,6 +41,7 @@ func MustUpdateStatus[Status any](s *System, update resources.Meta, status Statu
 }
 
 func (s *System) MustUpdateAndWait(changePoint *ObserverAspect, which resources.Meta, newSpec interface{}) {
+	s.t.Helper()
 	changeWatcher := changePoint.Fork()
 	exists, err := s.storage.Update(s.root, which, newSpec)
 	require.NoError(s.t, err)
