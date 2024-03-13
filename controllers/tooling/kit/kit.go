@@ -195,3 +195,22 @@ func (k *Kit[Spec, Status, State]) delete(parentCtx context.Context, changed res
 	problem := k.bridge.Delete(parentCtx, changed, state.runtimeState)
 	return problem
 }
+
+func (k *Kit[Spec, Status, State]) updateState(ctx context.Context, span trace.Span, which resources.Meta, kitState *state[State]) error {
+	if err := k.bridge.UpdateState(ctx, which, kitState.runtimeState); err != nil {
+		span.SetStatus(codes.Error, "state update failed")
+		//todo: should probably aggregate errors
+		return err
+	}
+	status := k.bridge.Status(ctx, kitState.runtimeState)
+	statusExists, err := k.store.UpdateStatus(ctx, which, status)
+	if err != nil {
+		span.SetStatus(codes.Error, "failed")
+		return err
+	}
+	if !statusExists {
+		span.SetStatus(codes.Error, "missing")
+		//todo: delete?  we should probably wait until we get the event.
+	}
+	return nil
+}

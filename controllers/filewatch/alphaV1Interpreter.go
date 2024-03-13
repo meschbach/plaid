@@ -56,6 +56,10 @@ func (a *alpha1Interpreter) Update(parent context.Context, which resources.Meta,
 	return errors.New("todo -- change chase")
 }
 
+func (a *alpha1Interpreter) UpdateState(ctx context.Context, which resources.Meta, rt *watch) error {
+	return nil
+}
+
 func (a *alpha1Interpreter) Delete(ctx context.Context, which resources.Meta, rt *watch) error {
 	return a.runtime.unregisterWatch(ctx, rt.base, rt)
 }
