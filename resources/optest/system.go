@@ -13,24 +13,24 @@ type System struct {
 	s             resources.System
 	root          context.Context
 	Legacy        *resources.TestSubsystem
-	storage       resources.Storage
-	observer      resources.Watcher
+	Storage       resources.Storage
+	Observer      resources.Watcher
 	observers     *resources.MetaContainer[Observer]
 	typeObservers *resources.TypeContainer[Observer]
 }
 
 func (s *System) MustCreate(ctx context.Context, ref resources.Meta, spec any) {
-	require.NoError(s.t, s.storage.Create(ctx, ref, spec))
+	require.NoError(s.t, s.Storage.Create(ctx, ref, spec))
 }
 
 func (s *System) MustDelete(ctx context.Context, ref resources.Meta) {
-	exists, err := s.storage.Delete(ctx, ref)
+	exists, err := s.Storage.Delete(ctx, ref)
 	require.NoError(s.t, err)
 	require.True(s.t, exists, "must have existed")
 }
 
 func (s *System) MustUpdateStatus(ctx context.Context, ref resources.Meta, status interface{}) {
-	exists, err := s.storage.UpdateStatus(ctx, ref, status)
+	exists, err := s.Storage.UpdateStatus(ctx, ref, status)
 	require.NoError(s.t, err)
 	require.True(s.t, exists, "expected to exist but did not")
 }
@@ -45,8 +45,8 @@ func (s *System) Run(name string, test func(t *testing.T, plaid *System, ctx con
 			s:             s.s,
 			root:          ctx,
 			Legacy:        s.Legacy,
-			storage:       s.storage,
-			observer:      s.observer,
+			Storage:       s.Storage,
+			Observer:      s.Observer,
 			observers:     s.observers,
 			typeObservers: s.typeObservers,
 		}
@@ -67,8 +67,8 @@ func New(t *testing.T) (context.Context, *System) {
 		s:             legacy.System,
 		root:          ctx,
 		Legacy:        legacy,
-		storage:       legacy.Store,
-		observer:      systemObserver,
+		Storage:       legacy.Store,
+		Observer:      systemObserver,
 		observers:     resources.NewMetaContainer[Observer](),
 		typeObservers: resources.NewTypeContainer[Observer](),
 	}
@@ -89,8 +89,8 @@ func From(t *testing.T, parent context.Context, s resources.System) *System {
 		s:             s,
 		root:          ctx,
 		Legacy:        nil,
-		storage:       storage,
-		observer:      watcher,
+		Storage:       storage,
+		Observer:      watcher,
 		observers:     resources.NewMetaContainer[Observer](),
 		typeObservers: resources.NewTypeContainer[Observer](),
 	}
