@@ -23,7 +23,7 @@ func TestSimpleLifecycle(t *testing.T) {
 		start := time.Now()
 		ref := resources.FakeMetaOf(Type)
 		refWatch := plaid.Observe(ctx, ref)
-		initToken := ""
+		initToken := faker.Word()
 		simpleSpec := Spec{
 			Run: exec.TemplateAlpha1Spec{
 				Command:    "echo test",
@@ -37,11 +37,15 @@ func TestSimpleLifecycle(t *testing.T) {
 		createStatusGate.Wait(t, ctx, "failed to update status on create")
 
 		status := optest.MustGetStatus[Status](plaid, ref)
+		assert.Equal(t, initToken, status.LatestToken, "initial token is seen")
+		assert.False(t, status.Ready, "service is not yet ready")
+
 		if assert.NotNil(t, status.Next, "attempting to build") {
 			assert.Equal(t, simpleSpec.RestartToken, status.Next.Token, "build token should be the same")
 			assert.Less(t, start, status.Next.Last, "last modified should be less than start time")
 			assert.Equal(t, initToken, status.Next.Token, "token is correctly marked")
 			assert.NotNil(t, status.Next.Service, "a service should be created")
+			assert.False(t, status.Next.Ready, "service should not be considered ready yet")
 		}
 
 		assert.Nil(t, status.Stable, "no stable build exists")
@@ -60,11 +64,13 @@ func TestSimpleLifecycle(t *testing.T) {
 			statusChange.Wait(t, ctx, "service should update")
 
 			afterStartStatus := optest.MustGetStatus[Status](plaid, ref)
+			assert.True(t, afterStartStatus.Ready, "ready when the service has been started")
 			assert.Nil(t, afterStartStatus.Next)
 			if assert.NotNil(t, afterStartStatus.Stable, "next should be promoted to stable: %#v", afterStartStatus) {
 				assert.Less(t, now, afterStartStatus.Stable.Last, "update time is after the service started")
 				assert.Equal(t, initToken, afterStartStatus.Stable.Token, "token is correct")
 				assert.Equal(t, *status.Next.Service, *afterStartStatus.Stable.Service, "stable and old next should reference the same process")
+				assert.True(t, afterStartStatus.Stable.Ready, "service is marked as ready")
 			}
 		})
 
@@ -79,6 +85,7 @@ func TestSimpleLifecycle(t *testing.T) {
 			if assert.NotNil(t, statusOnRestart.Stable, "stable remains unchanged") {
 				assert.Equal(t, initToken, statusOnRestart.Stable.Token)
 			}
+			assert.False(t, statusOnRestart.Ready, "service is no longer ready")
 
 			if assert.NotNil(t, statusOnRestart.Next, "a new build should be started") {
 				assert.Equal(t, nextToken, statusOnRestart.Next.Token)
@@ -97,6 +104,7 @@ func TestSimpleLifecycle(t *testing.T) {
 						assert.Equal(t, initToken, statusOnRestart.Stable.Token)
 					}
 
+					assert.False(t, interruptedStatus.Ready, "interrupted build is not ready")
 					if assert.NotNil(t, interruptedStatus.Next) {
 						assert.Equal(t, interruptingToken, interruptedStatus.Next.Token, "next token should be the interrupted value")
 						assert.Less(t, interruptTime, interruptedStatus.Next.Last, "last change time should be updated")
@@ -121,6 +129,7 @@ func TestSimpleLifecycle(t *testing.T) {
 						assert.Nil(t, afterBuild.Next, "build has completed")
 						assert.Len(t, afterBuild.Old, 2, "interrupted build and old service are retired")
 						assert.Equal(t, interruptingToken, afterBuild.Stable.Token, "interrupted build was promoted")
+						assert.True(t, afterBuild.Ready, "service is ready again")
 
 						for _, old := range afterBuild.Old {
 							var oldSpec exec.InvocationAlphaV1Spec

@@ -57,7 +57,7 @@ func (d *daemonState) decideNextStep(ctx context.Context, env tooling.Env, resta
 		return daemonCreate, nil
 	case tooling.SubresourceExists:
 		//todo: alpha2 should export readiness
-		d.targetReady = procState.Stable != nil && procState.Stable.Token == restartToken
+		d.targetReady = procState.Ready
 		if procState.LatestToken != restartToken {
 			return daemonUpdate, nil
 		}

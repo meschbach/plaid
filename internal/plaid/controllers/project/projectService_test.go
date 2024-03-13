@@ -86,15 +86,11 @@ func TestProjectAlpha1(t *testing.T) {
 					serviceUpdated := projectWatch.Status.Fork()
 					optest.MustUpdateStatusAndWait(plaid, projectWatch.Status, serviceRef, alpha2.Status{
 						LatestToken: "",
+						Ready:       true,
 						Stable: &alpha2.TokenStatus{
 							Token: "",
+							Ready: true,
 						},
-						//todo: these should probably be in TokenStatus
-						//Dependencies: nil,
-						//Build: service.Alpha1BuildStatus{
-						//	State: Alpha1StateSuccess,
-						//},
-						//Ready: true,
 					})
 
 					serviceUpdated.WaitFor(t, ctx, func(ctx context.Context) bool {

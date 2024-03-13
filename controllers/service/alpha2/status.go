@@ -6,6 +6,7 @@ import (
 )
 
 type Status struct {
+	//LatestToken seen by the controller and working towards propagating
 	LatestToken string `json:"latest-token"`
 	//Debounce    time.Duration `json:"debounce"`
 	//Stable has been built and is ready for service
@@ -14,6 +15,8 @@ type Status struct {
 	Next *TokenStatus `json:"next,omitempty"`
 	//Old token which are to be retired
 	Old []TokenStatus `json:"old,omitempty"`
+	//Ready indicates the current stable service matches LatestToken and is stable
+	Ready bool `json:"ready"`
 }
 
 const TokenStageInit = "init"
@@ -32,4 +35,6 @@ type TokenStatus struct {
 	Last time.Time `json:"last"`
 	//Service refers to the process which is the service.  Will be nil until the service is created.
 	Service *resources.Meta `json:"service,omitempty"`
+	//Ready indicates the service is running and considered ready
+	Ready bool `json:"ready"`
 }

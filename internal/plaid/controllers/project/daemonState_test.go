@@ -56,8 +56,10 @@ func TestDaemonState(t *testing.T) {
 		plaid.Run("When daemon has become ready", func(t *testing.T, plaid *optest.System, ctx context.Context) {
 			plaid.MustUpdateStatus(ctx, daemon.service.Ref, alpha2.Status{
 				LatestToken: "",
+				Ready:       true,
 				Stable: &alpha2.TokenStatus{
 					Token: "",
+					Ready: true,
 				},
 			})
 

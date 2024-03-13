@@ -104,11 +104,13 @@ func (o *Ops) Status(ctx context.Context, rt *State) Status {
 		stableStatus := rt.stable.toStatus()
 		status.LatestToken = stableStatus.Token
 		status.Stable = &stableStatus
+		status.Ready = stableStatus.Ready
 	}
 	if rt.next != nil {
 		nextStatus := rt.next.toStatus()
 		status.LatestToken = nextStatus.Token
 		status.Next = &nextStatus
+		status.Ready = false
 	}
 	status.Old = make([]TokenStatus, 0, len(rt.old)+len(rt.stopping))
 	for _, old := range rt.old {

@@ -13,6 +13,7 @@ type tokenState struct {
 	spec         exec.TemplateAlpha1Spec
 	run          tooling.Subresource[exec.InvocationAlphaV1Status]
 	lastModified time.Time
+	probesReady  bool
 }
 
 func (t *tokenState) progressBuild(ctx context.Context, env tooling.Env, s *State) error {
@@ -32,12 +33,14 @@ func (t *tokenState) progressBuild(ctx context.Context, env tooling.Env, s *Stat
 			return err
 		}
 	case tooling.SubresourceExists:
+		t.probesReady = false
 		if status.Started == nil {
 			return nil
 		}
 		if !status.Healthy {
 			return nil
 		}
+		t.probesReady = true
 		t.lastModified = time.Now()
 		s.promoteNext()
 	}
@@ -92,6 +95,7 @@ func (t *tokenState) toStatus() TokenStatus {
 	out := TokenStatus{
 		Token: t.token,
 		Last:  t.lastModified,
+		Ready: t.probesReady,
 	}
 	if !t.run.Created {
 		out.Stage = TokenStageInit
