@@ -48,3 +48,12 @@ func (s *System) MustUpdateAndWait(changePoint *ObserverAspect, which resources.
 	require.True(s.t, exists)
 	changeWatcher.Wait(s.t, s.root)
 }
+
+func MustBeMissingSpec[Spec any](plaid *System, ref resources.Meta, messageAndValues ...any) bool {
+	var spec Spec
+	exists, err := plaid.storage.Get(plaid.root, ref, &spec)
+	if !assert.NoError(plaid.t, err) {
+		return false
+	}
+	return assert.False(plaid.t, exists, messageAndValues)
+}
