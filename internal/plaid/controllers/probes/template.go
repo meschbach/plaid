@@ -8,8 +8,8 @@ import (
 
 type TemplateEnv struct {
 	ClaimedBy resources.Meta
-	Storage   *resources.Client
-	Watcher   *resources.ClientWatcher
+	Storage   resources.Storage
+	Watcher   resources.Watcher
 	OnChange  func(ctx context.Context) error
 }
 
@@ -30,13 +30,13 @@ func (t *TemplateAlpha1Spec) Instantiate(ctx context.Context, env TemplateEnv) (
 }
 
 type TemplateAlpha1State interface {
-	Reconcile(ctx context.Context, storage *resources.Client) error
+	Reconcile(ctx context.Context, storage resources.Storage) error
 	Ready() bool
 }
 
 type alwaysReady struct{}
 
-func (a *alwaysReady) Reconcile(ctx context.Context, storage *resources.Client) error {
+func (a *alwaysReady) Reconcile(ctx context.Context, storage resources.Storage) error {
 	return nil
 }
 
