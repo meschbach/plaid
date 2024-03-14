@@ -7,12 +7,21 @@ import (
 	"time"
 )
 
-type Controller struct {
-	storage *resources.Controller
+type ControllerOpts struct {
+	//DefaultWatchFiles provides the default value when a project is missing the WatchFiles field is missing
+	DefaultWatchFiles bool
 }
 
-func NewProjectSystem(storage *resources.Controller) *Controller {
-	return &Controller{storage: storage}
+type Controller struct {
+	storage           *resources.Controller
+	defaultWatchFiles bool
+}
+
+func NewProjectSystem(storage *resources.Controller, opts ControllerOpts) *Controller {
+	return &Controller{
+		storage:           storage,
+		defaultWatchFiles: opts.DefaultWatchFiles,
+	}
 }
 
 func (c *Controller) Serve(ctx context.Context) error {
@@ -24,8 +33,9 @@ func (c *Controller) Serve(ctx context.Context) error {
 	}
 
 	bridge := operator.NewKindBridge[Alpha1Spec, Alpha1Status, state](Alpha1, &alpha1Ops{
-		client:  store,
-		watcher: watcher,
+		client:            store,
+		watcher:           watcher,
+		defaultWatchFiles: c.defaultWatchFiles,
 	})
 	av1Event, err := bridge.Setup(ctx, store)
 	if err != nil {

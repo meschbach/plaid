@@ -16,7 +16,7 @@ import (
 func TestProjectAlpha1(t *testing.T) {
 	t.Run("Given a Plaid instance with the configured controller", func(t *testing.T) {
 		_, plaid := optest.New(t)
-		plaid.Legacy.AttachController("plaid.controllers.project", NewProjectSystem(plaid.Legacy.Controller))
+		plaid.Legacy.AttachController("plaid.controllers.project", NewProjectSystem(plaid.Legacy.Controller, ControllerOpts{}))
 
 		plaid.Run("When a new project is Created with a daemon service", func(t *testing.T, s *optest.System, ctx context.Context) {
 			tmpDir := os.TempDir()

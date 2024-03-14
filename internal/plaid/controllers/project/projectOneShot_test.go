@@ -14,7 +14,7 @@ import (
 func TestProjectAlpha1OneShot(t *testing.T) {
 	t.Run("Given a Plaid instance with the configured controller", func(t *testing.T) {
 		ctx, plaid := optest.New(t)
-		plaid.Legacy.AttachController("plaid.controllers.project", NewProjectSystem(plaid.Legacy.Controller))
+		plaid.Legacy.AttachController("plaid.controllers.project", NewProjectSystem(plaid.Legacy.Controller, ControllerOpts{}))
 
 		t.Run("When a new project is Created with a oneshot", func(t *testing.T) {
 			tmpDir := os.TempDir()

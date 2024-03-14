@@ -64,7 +64,9 @@ func (b *bundledServices) attachV0_2_0() {
 	b.Supervisor.Add(localProcSupervisors)
 
 	//todo: really devxp type stuff
-	projectSystem := project.NewProjectSystem(b.resources)
+	projectSystem := project.NewProjectSystem(b.resources, project.ControllerOpts{
+		DefaultWatchFiles: true,
+	})
 	b.Supervisor.Add(projectSystem)
 	localProjectFileSystem := projectfile.NewProjectFileSystem(b.resources)
 	b.Supervisor.Add(localProjectFileSystem)

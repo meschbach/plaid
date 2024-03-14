@@ -17,8 +17,9 @@ const annotationRunTypeDaemon = "daemon"
 const annotationName = Kind + ":name"
 
 type alpha1Ops struct {
-	client  *resources.Client
-	watcher *resources.ClientWatcher
+	client            *resources.Client
+	watcher           *resources.ClientWatcher
+	defaultWatchFiles bool
 }
 
 func (a *alpha1Ops) Create(ctx context.Context, which resources.Meta, spec Alpha1Spec, bridge *operator.KindBridgeState) (*state, Alpha1Status, error) {
@@ -39,6 +40,9 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 	))
 	defer span.End()
 
+	//resolve watch files question
+	rt.fileWatch.updateSpec(spec.WatchFiles, a.defaultWatchFiles)
+
 	status := Alpha1Status{
 		RestartToken: rt.restartToken,
 	}
@@ -52,6 +56,12 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 			return rt.bridge.OnResourceChange(ctx, which)
 		},
 	}
+
+	if err := rt.fileWatch.reconcile(ctx, env); err != nil {
+		return status, err
+	}
+	status.RestartToken = rt.fileWatch.restartToken
+	status.WatchFiles = rt.fileWatch.toStatus()
 
 	var oneShotErrors []error
 	incompleteOneShots := 0
@@ -114,7 +124,10 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 		}
 
 		daemonStatus := &Alpha1DaemonStatus{}
-		if next, err := subController.decideNextStep(ctx, env, rt.restartToken); err != nil {
+		if rt.fileWatch.restart {
+			subController.updateRestartToken(rt.fileWatch.restartToken)
+		}
+		if next, err := subController.decideNextStep(ctx, env); err != nil {
 			span.SetStatus(codes.Error, "failure while determine daemon state")
 			span.RecordError(err)
 			daemonErrors = append(daemonErrors, err)
@@ -142,7 +155,7 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 				span.AddEvent("daemon-finished")
 				//todo: restart?
 			case daemonUpdate:
-				err := subController.update(ctx, env, spec, daemonSpec, rt.restartToken)
+				err := subController.update(ctx, env, spec, daemonSpec)
 				if err != nil {
 					span.SetStatus(codes.Error, "failed to update daemon")
 					span.RecordError(err)
@@ -188,4 +201,6 @@ type state struct {
 
 	//restartToken is the current token for restarting associated services.
 	restartToken string
+
+	fileWatch watchFilesState
 }

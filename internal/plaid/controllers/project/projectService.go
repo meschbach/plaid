@@ -18,6 +18,7 @@ type Alpha1Spec struct {
 	BaseDirectory string              `json:"base-directory"`
 	OneShots      []Alpha1OneShotSpec `json:"one-shots,omitempty"`
 	Daemons       []Alpha1DaemonSpec  `json:"daemons,omitempty"`
+	WatchFiles    *bool               `json:"watch-files,omitempty"`
 }
 
 type Alpha1OneShotSpec struct {
@@ -43,7 +44,8 @@ type Alpha1Status struct {
 	Result string `json:"result"`
 	Ready  bool   `json:"ready"`
 	//RestartToken is the current restart token for the given project.
-	RestartToken string `json:"restart-token"`
+	RestartToken string          `json:"restart-token"`
+	WatchFiles   *resources.Meta `json:"watch-files,omitempty"`
 }
 
 const Alpha1StateCreating = "creating"
