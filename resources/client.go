@@ -45,6 +45,10 @@ func (c *Client) Update(ctx context.Context, what Meta, resource any) (exists bo
 
 // UpdateBytes changes the specified resource specification
 func (c *Client) UpdateBytes(ctx context.Context, what Meta, resource []byte) (exists bool, problem error) {
+	if err := what.ValidError(); err != nil {
+		return false, err
+	}
+
 	resultSignal := make(chan updateReply, 1)
 	select {
 	case c.dataPlane <- &updateOp{
@@ -75,6 +79,10 @@ func (c *Client) Get(ctx context.Context, what Meta, out any) (exists bool, prob
 
 // GetBytes retrieves the specification for the desired state for given resource
 func (c *Client) GetBytes(ctx context.Context, meta Meta) (body []byte, exists bool, problem error) {
+	if err := meta.ValidError(); err != nil {
+		return nil, false, err
+	}
+
 	resultSignal := make(chan getSpecReply, 1)
 	select {
 	case c.dataPlane <- &getSpecOp{
@@ -120,6 +128,10 @@ func (c *Client) GetStatus(parent context.Context, what Meta, out any) (bool, er
 
 // GetStatusBytes retrieves the status of the given resource
 func (c *Client) GetStatusBytes(ctx context.Context, meta Meta) (body []byte, exists bool, problem error) {
+	if err := meta.ValidError(); err != nil {
+		return nil, false, err
+	}
+
 	resultSignal := make(chan getStatusReply, 1)
 	select {
 	case c.dataPlane <- &getStatusOp{

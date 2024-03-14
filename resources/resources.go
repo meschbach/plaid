@@ -19,6 +19,10 @@ func (t Type) String() string {
 	return fmt.Sprintf("{%s %s}", t.Kind, t.Version)
 }
 
+func (t Type) Valid() bool {
+	return t.Kind != "" && t.Version != ""
+}
+
 type Meta struct {
 	Type Type   `json:"type"`
 	Name string `json:"name"`

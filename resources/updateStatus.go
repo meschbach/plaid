@@ -31,6 +31,10 @@ func (c *Client) UpdateStatus(ctx context.Context, what Meta, status any) (bool,
 
 // UpdateStatusBytes changes the status of the specified resource.  Returns existence and error
 func (c *Client) UpdateStatusBytes(ctx context.Context, what Meta, status []byte) (bool, error) {
+	if err := what.ValidError(); err != nil {
+		return false, err
+	}
+
 	resultSignal := make(chan updateStatusReply, 1)
 	//todo -- op should close the channel
 	select {
