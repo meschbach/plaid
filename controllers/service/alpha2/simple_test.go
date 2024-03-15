@@ -49,10 +49,8 @@ func TestSimpleLifecycle(t *testing.T) {
 		}
 
 		assert.Nil(t, status.Stable, "no stable build exists")
-
-		if status.Next.Service == nil {
-			return
-		}
+		require.NotNil(t, status.Next, "next build must be in progress")
+		require.NotNil(t, status.Next.Service, "next run ref must not be nil")
 
 		plaid.Run("When the invocation starts starts", func(t *testing.T, plaid *optest.System, ctx context.Context) {
 			statusChange := refWatch.Status.Fork()

@@ -20,10 +20,11 @@ func (o *Ops) Create(ctx context.Context, which resources.Meta, spec Spec, bridg
 	depState := dependencies.State{}
 	depState.Init(spec.Dependencies)
 	next := &tokenState{
-		token:    spec.RestartToken,
-		spec:     spec.Run,
-		depState: depState,
-		depsFuse: false,
+		token:      spec.RestartToken,
+		spec:       spec.Run,
+		depState:   depState,
+		depsFuse:   false,
+		probesSpec: spec.Readiness,
 	}
 	state := &State{
 		next:   next,
@@ -48,7 +49,7 @@ func (o *Ops) Update(ctx context.Context, which resources.Meta, rt *State, s Spe
 				token:        s.RestartToken,
 				spec:         s.Run,
 				run:          tooling.Subresource[exec.InvocationAlphaV1Status]{},
-				lastModified: time.Time{},
+				lastModified: time.Now(),
 			}
 		}
 	} else if rt.stable != nil {
@@ -58,7 +59,7 @@ func (o *Ops) Update(ctx context.Context, which resources.Meta, rt *State, s Spe
 				token:        s.RestartToken,
 				spec:         s.Run,
 				run:          tooling.Subresource[exec.InvocationAlphaV1Status]{},
-				lastModified: time.Time{},
+				lastModified: time.Now(),
 			}
 		}
 	} else {

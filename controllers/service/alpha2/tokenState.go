@@ -6,6 +6,7 @@ import (
 	"github.com/meschbach/plaid/controllers/tooling"
 	"github.com/meschbach/plaid/internal/plaid/controllers/dependencies"
 	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
+	"github.com/meschbach/plaid/internal/plaid/controllers/probes"
 	"time"
 )
 
@@ -18,6 +19,9 @@ type tokenState struct {
 	depStatus    dependencies.Alpha1Status
 	run          tooling.Subresource[exec.InvocationAlphaV1Status]
 	lastModified time.Time
+	probesSpec   *probes.TemplateAlpha1Spec
+	probesState  probes.TemplateAlpha1State
+	probesFuse   bool
 	probesReady  bool
 }
 
@@ -50,22 +54,51 @@ func (t *tokenState) progressBuild(ctx context.Context, env tooling.Env, s *Stat
 		if err := t.run.Create(ctx, env, invocationRef, invocationSpec); err != nil {
 			return err
 		}
+		return nil
 	case tooling.SubresourceExists:
-		t.probesReady = false
 		if status.Started == nil {
 			return nil
 		}
 		if !status.Healthy {
 			return nil
 		}
-		t.probesReady = true
-		t.lastModified = time.Now()
-		s.promoteNext()
 	}
+	if !t.probesFuse {
+		if t.probesState == nil {
+			probeEnv := probes.TemplateEnv{
+				ClaimedBy: env.Subject,
+				Storage:   env.Storage,
+				Watcher:   env.Watcher,
+				OnChange:  env.Reconcile,
+			}
+			probeState, err := t.probesSpec.Instantiate(ctx, probeEnv)
+			if err != nil {
+				return err
+			}
+			t.probesState = probeState
+			t.lastModified = time.Now()
+		}
+		if err := t.probesState.Reconcile(ctx, env.Storage); err != nil {
+			return err
+		}
+		ready := t.probesState.Ready()
+		if !ready {
+			return nil
+		}
+		t.probesFuse = true
+	}
+	t.probesReady = true
+	t.lastModified = time.Now()
+	s.promoteNext()
 	return nil
 }
 
 func (t *tokenState) progressRun(ctx context.Context, env tooling.Env, s *State) error {
+	//update probes state
+	if err := t.probesState.Reconcile(ctx, env.Storage); err != nil {
+		return err
+	}
+	//
 	var status exec.InvocationAlphaV1Status
 	step, err := t.run.Decide(ctx, env, &status)
 	if err != nil {
@@ -125,8 +158,21 @@ func (t *tokenState) toStatus() TokenStatus {
 		out.Stage = TokenStageInit
 		return out
 	}
-	out.Stage = TokenStageStarting
 	out.Service = &t.run.Ref
+	if t.probesState == nil {
+		out.Ready = false
+		out.Stage = TokenStageProbeWait
+		return out
+	} else {
+		if !t.probesFuse {
+			out.Probe = t.probesState.Status()
+			out.Stage = TokenStageProbeWait
+			return out
+		}
+		out.Probe = t.probesState.Status()
+		out.Ready = t.probesState.Ready()
+	}
+	out.Stage = TokenStageStarting
 	return out
 }
 

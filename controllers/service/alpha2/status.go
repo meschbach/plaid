@@ -2,6 +2,7 @@ package alpha2
 
 import (
 	"github.com/meschbach/plaid/internal/plaid/controllers/dependencies"
+	"github.com/meschbach/plaid/internal/plaid/controllers/probes"
 	"github.com/meschbach/plaid/resources"
 	"time"
 )
@@ -24,6 +25,7 @@ const TokenStageInit = "init"
 const TokenStageDependencyWait = "dep-wait"
 const TokenStageDependenciesReady = "dep-ready"
 const TokenStageBuilding = "building"
+const TokenStageProbeWait = "probe-wait"
 const TokenStageStarting = "starting"
 const TokenStageReady = "ready"
 const TokenStageStopping = "stopping"
@@ -42,4 +44,6 @@ type TokenStatus struct {
 	Deps dependencies.Alpha1Status `json:"dependencies,omitempty"`
 	//DepsFuse represents if all dependencies have been seen as available
 	DepsFuse bool `json:"dependencies-fuse"`
+	//Probe represents the probe state
+	Probe probes.TemplateAlpha1Status `json:"probe,omitempty"`
 }

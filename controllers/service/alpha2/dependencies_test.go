@@ -63,8 +63,10 @@ func TestDependencies(t *testing.T) {
 			statusChangeGate.Wait(t, ctx)
 
 			depReady := optest.MustGetStatus[Status](plaid, ref)
-			assert.True(t, depReady.Next.DepsFuse, "all dependencies were ready at once")
-			assert.True(t, depReady.Next.Deps[depName].Ready, "dependency is ready")
+			if assert.NotNil(t, depReady.Next, "service transitioned to stable") {
+				assert.True(t, depReady.Next.DepsFuse, "all dependencies were ready at once")
+				assert.True(t, depReady.Next.Deps[depName].Ready, "dependency is ready")
+			}
 		})
 	})
 }
