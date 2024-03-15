@@ -7,6 +7,8 @@ import (
 	"github.com/meschbach/plaid/internal/plaid/controllers/dependencies"
 	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
 	"github.com/meschbach/plaid/internal/plaid/controllers/probes"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"time"
 )
 
@@ -26,10 +28,13 @@ type tokenState struct {
 }
 
 func (t *tokenState) progressBuild(ctx context.Context, env tooling.Env, s *State) error {
+	span := trace.SpanFromContext(ctx)
 	//todo: utility for dependency state doesn't map to this system well
 	if !t.depsFuse {
 		ready, status, err := t.depState.Reconcile(ctx, dependencies.Env(env))
 		if err != nil {
+			span.SetStatus(codes.Error, "failed to update dependency")
+			span.AddEvent("dependencies reconciliation failed")
 			return err
 		}
 		t.depStatus = status
@@ -49,9 +54,11 @@ func (t *tokenState) progressBuild(ctx context.Context, env tooling.Env, s *Stat
 		t.lastModified = time.Now()
 		invocationRef, invocationSpec, err := t.spec.AsSpec(env.Subject.Name + "-" + t.token)
 		if err != nil {
+			span.AddEvent("invocation spec failed")
 			return err
 		}
 		if err := t.run.Create(ctx, env, invocationRef, invocationSpec); err != nil {
+			span.AddEvent("invocation creation failed")
 			return err
 		}
 		return nil
