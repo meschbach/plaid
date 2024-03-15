@@ -24,7 +24,8 @@ func (t *TemplateAlpha1Spec) Instantiate(ctx context.Context, env TemplateEnv) (
 	}
 	if t.Http != nil {
 		state, err := t.Http.Instantiate(ctx, env.Storage, env.ClaimedBy, env.Watcher, env.OnChange)
-		return state, err
+		adapter := &httpAdapter{state: state}
+		return adapter, err
 	}
 	return &alwaysReady{}, nil
 }
@@ -32,6 +33,7 @@ func (t *TemplateAlpha1Spec) Instantiate(ctx context.Context, env TemplateEnv) (
 type TemplateAlpha1State interface {
 	Reconcile(ctx context.Context, storage resources.Storage) error
 	Ready() bool
+	Status() TemplateAlpha1Status
 }
 
 type alwaysReady struct{}
@@ -42,4 +44,10 @@ func (a *alwaysReady) Reconcile(ctx context.Context, storage resources.Storage) 
 
 func (a *alwaysReady) Ready() bool {
 	return true
+}
+
+func (a *alwaysReady) Status() TemplateAlpha1Status {
+	return TemplateAlpha1Status{
+		Ready: true,
+	}
 }

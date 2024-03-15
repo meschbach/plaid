@@ -65,3 +65,21 @@ func (t *TemplateState) Reconcile(ctx context.Context, storage resources.Storage
 func (t *TemplateState) Ready() bool {
 	return t.ready
 }
+
+type TemplateAlpha1Status struct {
+	Ref   *resources.Meta `json:"ref"`
+	Ready bool
+}
+
+func (t *TemplateState) Status() TemplateAlpha1Status {
+	if !t.probe.Created {
+		return TemplateAlpha1Status{
+			Ref:   nil,
+			Ready: false,
+		}
+	}
+	return TemplateAlpha1Status{
+		Ref:   &t.probe.Ref,
+		Ready: t.ready,
+	}
+}
