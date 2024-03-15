@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/meschbach/plaid/controllers/filewatch"
-	"github.com/meschbach/plaid/controllers/service/alpha2"
 	"github.com/meschbach/plaid/controllers/tooling"
 	"github.com/meschbach/plaid/resources"
 	"time"
@@ -21,7 +20,8 @@ type watchFilesState struct {
 	watcher tooling.Subresource[filewatch.Alpha1Status]
 }
 
-func (w *watchFilesState) updateSpec(spec *bool, defaultValue bool) {
+func (w *watchFilesState) updateSpec(spec *bool, defaultValue bool, baseDirectory string) {
+	w.basePath = baseDirectory
 	if spec == nil {
 		w.spec = defaultValue
 	} else {
@@ -42,8 +42,8 @@ func (w *watchFilesState) reconcile(ctx context.Context, env tooling.Env) error 
 	switch step {
 	case tooling.SubresourceCreate:
 		ref := resources.Meta{
-			Type: alpha2.Type,
-			Name: fmt.Sprintf("%s-%s", env.Subject.Name, "file-watch"),
+			Type: filewatch.Alpha1,
+			Name: env.Subject.Name,
 		}
 		spec := filewatch.Alpha1Spec{AbsolutePath: w.basePath}
 		return w.watcher.Create(ctx, env, ref, spec)

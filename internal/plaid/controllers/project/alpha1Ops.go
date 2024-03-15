@@ -28,6 +28,7 @@ func (a *alpha1Ops) Create(ctx context.Context, which resources.Meta, spec Alpha
 		oneShots: make(map[string]*oneShotState),
 		daemons:  make(map[string]*daemonState),
 	}
+	runtime.fileWatch.basePath = spec.BaseDirectory
 	status, err := a.Update(ctx, which, runtime, spec)
 	return runtime, status, err
 }
@@ -41,7 +42,7 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 	defer span.End()
 
 	//resolve watch files question
-	rt.fileWatch.updateSpec(spec.WatchFiles, a.defaultWatchFiles)
+	rt.fileWatch.updateSpec(spec.WatchFiles, a.defaultWatchFiles, spec.BaseDirectory)
 
 	status := Alpha1Status{
 		RestartToken: rt.restartToken,
