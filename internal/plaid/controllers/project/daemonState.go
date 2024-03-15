@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/meschbach/plaid/controllers/service/alpha2"
 	"github.com/meschbach/plaid/controllers/tooling"
+	"github.com/meschbach/plaid/internal/plaid/controllers/dependencies"
 	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
 	"github.com/meschbach/plaid/resources"
 )
@@ -70,7 +71,7 @@ func (d *daemonState) decideNextStep(ctx context.Context, env tooling.Env) (daem
 
 func (d *daemonState) generateSpec(spec Alpha1Spec, daemonSpec Alpha1DaemonSpec) alpha2.Spec {
 	resSpec := alpha2.Spec{
-		Dependencies: make([]resources.Meta, len(daemonSpec.Requires)),
+		Dependencies: make(dependencies.Alpha1Spec, len(daemonSpec.Requires)),
 		Run: exec.TemplateAlpha1Spec{
 			Command:    daemonSpec.Run.Command,
 			WorkingDir: spec.BaseDirectory,
@@ -86,7 +87,10 @@ func (d *daemonState) generateSpec(spec Alpha1Spec, daemonSpec Alpha1DaemonSpec)
 	}
 
 	for i, dep := range daemonSpec.Requires {
-		resSpec.Dependencies[i] = dep
+		resSpec.Dependencies[i] = dependencies.NamedDependencyAlpha1{
+			Name: dep.Name,
+			Ref:  dep,
+		}
 	}
 	return resSpec
 }
