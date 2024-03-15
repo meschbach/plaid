@@ -24,7 +24,9 @@ type Kit[Spec any, Status any, State any] struct {
 }
 
 func New[Spec any, Status any, State any](manage resources.Storage, observer resources.Watcher, kind resources.Type, bridge Operations[Spec, Status, State]) *Kit[Spec, Status, State] {
-	loopback := make(chan LoopbackEvent, 4)
+	//todo: since the loopback is only intended to be called internally this should probably switch to a queue with the
+	//actual channel used for internal notifications to pull th next iteration out
+	loopback := make(chan LoopbackEvent, 64)
 	kit := &Kit[Spec, Status, State]{
 		Loopback: loopback,
 		store:    manage,
@@ -135,6 +137,9 @@ func (k *Kit[Spec, Status, State]) create(parentCtx context.Context, which resou
 	runtimeState, err := k.bridge.Create(ctx, which, spec, manager)
 	if err != nil {
 		span.SetStatus(codes.Error, "bridge failed to create")
+		//since we are a root of dispatching, capturing the end of the call chain error is helpful to understand how
+		//the system interacts
+		span.RecordError(err)
 		return err
 	}
 	kitState := &state[State]{

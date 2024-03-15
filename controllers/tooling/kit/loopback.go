@@ -2,11 +2,14 @@ package kit
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/meschbach/plaid/resources"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
+
+var queueFull = errors.New("queue full")
 
 type loopbackOp uint8
 
@@ -86,6 +89,7 @@ type loopbackManager struct {
 }
 
 func (l *loopbackManager) dispatchOp(ctx context.Context, op loopbackOp) error {
+	//todo: handle target queue being full
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -95,6 +99,12 @@ func (l *loopbackManager) dispatchOp(ctx context.Context, op loopbackOp) error {
 		causedBy: trace.LinkFromContext(ctx),
 	}:
 		return nil
+	default:
+		err := queueFull
+		span := trace.SpanFromContext(ctx)
+		span.AddEvent("failed to enqueue loop back")
+		span.RecordError(err)
+		return errors.New("queue full")
 	}
 }
 
