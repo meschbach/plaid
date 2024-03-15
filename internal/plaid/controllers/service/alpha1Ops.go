@@ -57,7 +57,7 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *ser
 	allReady, depStatus, err := rt.dependencies.Reconcile(ctx, dependencies.Env{
 		Storage: a.client,
 		Watcher: a.watcher,
-		OnChange: func(ctx context.Context) error {
+		Reconcile: func(ctx context.Context) error {
 			return env.Reconcile(ctx)
 		},
 	})

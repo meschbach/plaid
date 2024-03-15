@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/meschbach/plaid/controllers/tooling"
 	"github.com/meschbach/plaid/internal/plaid/controllers/dependencies"
 	"github.com/meschbach/plaid/resources"
 	"github.com/meschbach/plaid/resources/operator"
@@ -43,13 +44,17 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 		},
 		restartToken: currentRestartToken,
 	}
+	env := tooling.Env{
+		Subject: which,
+		Storage: a.client,
+		Watcher: a.watcher,
+		Reconcile: func(ctx context.Context) error {
+			return rt.bridge.OnResourceChange(ctx, which)
+		},
+	}
 
 	// Are dependencies ready?
-	depsReady, depsStatus, err := rt.requires.Reconcile(ctx, dependencies.Env{
-		Storage:  runtimeEnv.rpc,
-		Watcher:  runtimeEnv.watcher,
-		OnChange: runtimeEnv.reconcile,
-	})
+	depsReady, depsStatus, err := rt.requires.Reconcile(ctx, dependencies.Env(env))
 	status.Dependencies = depsStatus
 	if err != nil || !depsReady {
 		return status, err
