@@ -34,7 +34,7 @@ func (o *Ops) Create(ctx context.Context, which resources.Meta, spec Spec, bridg
 		Subject:   which,
 		Storage:   o.storage,
 		Watcher:   o.observer,
-		Reconcile: bridge.Update,
+		Reconcile: bridge.UpdateState,
 	}
 	err := state.progress(ctx, env)
 	return state, err
