@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/meschbach/plaid/resources"
+	"go.opentelemetry.io/otel/codes"
 )
 
 // State manages a set of named dependencies
@@ -36,7 +37,10 @@ func (s *State) Init(deps Alpha1Spec) {
 }
 
 // Reconcile updates the internal state and determines if all dependencies are ready
-func (s *State) Reconcile(ctx context.Context, env Env) (ready bool, status Alpha1Status, err error) {
+func (s *State) Reconcile(parent context.Context, env Env) (ready bool, status Alpha1Status, err error) {
+	ctx, span := tracer.Start(parent, "dependencies.Reconcile")
+	defer span.End()
+
 	var allProblems []error
 	allReady := true
 	output := make(Alpha1Status)
@@ -48,6 +52,7 @@ func (s *State) Reconcile(ctx context.Context, env Env) (ready bool, status Alph
 			Ready: ready,
 		}
 		if problem != nil {
+			span.SetStatus(codes.Error, "had problem reconciling dependency")
 			allProblems = append(allProblems, problem)
 			allReady = false
 		} else {

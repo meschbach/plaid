@@ -40,6 +40,9 @@ func (d *DependencyState) Reconcile(parent context.Context, env Env) (ready bool
 	case nextStepWatch:
 		span.AddEvent("dependency-watch")
 		problem := d.watch(ctx, env)
+		if problem != nil {
+			span.SetStatus(codes.Error, "watch error")
+		}
 		return false, problem
 	default:
 		panic(fmt.Sprintf("unknown next step %d", step))
