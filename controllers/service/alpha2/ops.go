@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/meschbach/plaid/controllers/tooling"
 	"github.com/meschbach/plaid/controllers/tooling/kit"
+	"github.com/meschbach/plaid/internal/plaid/controllers/dependencies"
 	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
 	"github.com/meschbach/plaid/resources"
 	"time"
@@ -16,7 +17,14 @@ type Ops struct {
 }
 
 func (o *Ops) Create(ctx context.Context, which resources.Meta, spec Spec, bridge kit.Manager) (*State, error) {
-	next := &tokenState{token: spec.RestartToken, spec: spec.Run}
+	depState := dependencies.State{}
+	depState.Init(spec.Dependencies)
+	next := &tokenState{
+		token:    spec.RestartToken,
+		spec:     spec.Run,
+		depState: depState,
+		depsFuse: false,
+	}
 	state := &State{
 		next:   next,
 		bridge: bridge,

@@ -1,6 +1,7 @@
 package alpha2
 
 import (
+	"github.com/meschbach/plaid/internal/plaid/controllers/dependencies"
 	"github.com/meschbach/plaid/resources"
 	"time"
 )
@@ -37,4 +38,8 @@ type TokenStatus struct {
 	Service *resources.Meta `json:"service,omitempty"`
 	//Ready indicates the service is running and considered ready
 	Ready bool `json:"ready"`
+	//Deps encapsulates the state of the dependencies
+	Deps dependencies.Alpha1Status `json:"dependencies,omitempty"`
+	//DepsFuse represents if all dependencies have been seen as available
+	DepsFuse bool `json:"dependencies-fuse"`
 }

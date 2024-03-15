@@ -1,15 +1,15 @@
 package alpha2
 
 import (
+	"github.com/meschbach/plaid/internal/plaid/controllers/dependencies"
 	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
 	"github.com/meschbach/plaid/internal/plaid/controllers/probes"
-	"github.com/meschbach/plaid/resources"
 )
 
 type Spec struct {
 	// Dependencies are checked for the status with a `ready` field.  If all dependencies are ready then the a build and
 	// run is issued
-	Dependencies []resources.Meta         `json:"dependencies,omitempty"`
+	Dependencies dependencies.Alpha1Spec  `json:"dependencies,omitempty"`
 	Build        *exec.TemplateAlpha1Spec `json:"build,omitempty"`
 	Run          exec.TemplateAlpha1Spec  `json:"run"`
 	// Readiness defines a probe to determine if the system is ready

@@ -4,19 +4,37 @@ import (
 	"context"
 	"fmt"
 	"github.com/meschbach/plaid/controllers/tooling"
+	"github.com/meschbach/plaid/internal/plaid/controllers/dependencies"
 	"github.com/meschbach/plaid/internal/plaid/controllers/exec"
 	"time"
 )
 
 type tokenState struct {
-	token        string
-	spec         exec.TemplateAlpha1Spec
+	token string
+	spec  exec.TemplateAlpha1Spec
+	//depsFuse is triggered when all dependencies are ready
+	depState     dependencies.State
+	depsFuse     bool
+	depStatus    dependencies.Alpha1Status
 	run          tooling.Subresource[exec.InvocationAlphaV1Status]
 	lastModified time.Time
 	probesReady  bool
 }
 
 func (t *tokenState) progressBuild(ctx context.Context, env tooling.Env, s *State) error {
+	//todo: utility for dependency state doesn't map to this system well
+	if !t.depsFuse {
+		ready, status, err := t.depState.Reconcile(ctx, dependencies.Env(env))
+		if err != nil {
+			return err
+		}
+		t.depStatus = status
+		if !ready {
+			return nil
+		}
+		t.depsFuse = true
+	}
+
 	var status exec.InvocationAlphaV1Status
 	step, err := t.run.Decide(ctx, env, &status)
 	if err != nil {
@@ -93,9 +111,15 @@ func (t *tokenState) progressStopping(ctx context.Context, env tooling.Env) (boo
 
 func (t *tokenState) toStatus() TokenStatus {
 	out := TokenStatus{
-		Token: t.token,
-		Last:  t.lastModified,
-		Ready: t.probesReady,
+		Token:    t.token,
+		Last:     t.lastModified,
+		Ready:    t.probesReady,
+		Deps:     t.depStatus,
+		DepsFuse: t.depsFuse,
+	}
+	if !t.depsFuse {
+		out.Stage = TokenStageDependencyWait
+		return out
 	}
 	if !t.run.Created {
 		out.Stage = TokenStageInit
