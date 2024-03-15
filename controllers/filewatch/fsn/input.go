@@ -38,7 +38,7 @@ func (c *Core) Watch2(ctx context.Context, point WatchConfig) error {
 func (c *Core) Watch(ctx context.Context, path string) error {
 	return c.Watch2(ctx, WatchConfig{
 		Path:          path,
-		ExcludeSuffix: nil,
+		ExcludeSuffix: []string{"node_modules", ".git"},
 	})
 }
 
