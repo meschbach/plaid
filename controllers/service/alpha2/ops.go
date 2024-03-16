@@ -21,6 +21,7 @@ func (o *Ops) Create(ctx context.Context, which resources.Meta, spec Spec, bridg
 	depState.Init(spec.Dependencies)
 	next := &tokenState{
 		token:      spec.RestartToken,
+		buildSpec:  spec.Build,
 		spec:       spec.Run,
 		depState:   depState,
 		depsFuse:   false,

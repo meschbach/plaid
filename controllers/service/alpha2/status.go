@@ -36,6 +36,8 @@ type TokenStatus struct {
 	Stage string `json:"stage"`
 	//Last time when a change has occurred to this resource
 	Last time.Time `json:"last"`
+	//Build references the process for building something
+	Build *resources.Meta `json:"build,omitempty"`
 	//Service refers to the process which is the service.  Will be nil until the service is created.
 	Service *resources.Meta `json:"service,omitempty"`
 	//Ready indicates the service is running and considered ready

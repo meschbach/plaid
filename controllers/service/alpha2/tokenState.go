@@ -19,6 +19,9 @@ type tokenState struct {
 	depState     dependencies.State
 	depsFuse     bool
 	depStatus    dependencies.Alpha1Status
+	build        tooling.Subresource[exec.InvocationAlphaV1Status]
+	buildSpec    *exec.TemplateAlpha1Spec
+	buildFuse    bool
 	run          tooling.Subresource[exec.InvocationAlphaV1Status]
 	lastModified time.Time
 	probesSpec   *probes.TemplateAlpha1Spec
@@ -44,12 +47,41 @@ func (t *tokenState) progressBuild(ctx context.Context, env tooling.Env, s *Stat
 		t.depsFuse = true
 	}
 
-	var status exec.InvocationAlphaV1Status
-	step, err := t.run.Decide(ctx, env, &status)
+	if t.buildSpec != nil {
+		var buildStatus exec.InvocationAlphaV1Status
+		buildStep, err := t.build.Decide(ctx, env, &buildStatus)
+		if err != nil {
+			return err
+		}
+		switch buildStep {
+		case tooling.SubresourceCreate:
+			t.lastModified = time.Now()
+			buildRef, buildSpec, err := t.buildSpec.AsSpec(env.Subject.Name + "-build-" + t.token)
+			if err != nil {
+				return err
+			}
+			if err := t.build.Create(ctx, env, buildRef, buildSpec); err != nil {
+				return err
+			}
+			return nil
+		case tooling.SubresourceExists:
+			if !t.buildFuse {
+				//if we have not yet finished then keep going
+				if buildStatus.Finished == nil || buildStatus.ExitStatus == nil {
+					return nil
+				}
+				t.buildFuse = true
+			}
+			//otherwise we are good
+		}
+	}
+
+	var runStatus exec.InvocationAlphaV1Status
+	runStep, err := t.run.Decide(ctx, env, &runStatus)
 	if err != nil {
 		return err
 	}
-	switch step {
+	switch runStep {
 	case tooling.SubresourceCreate:
 		t.lastModified = time.Now()
 		invocationRef, invocationSpec, err := t.spec.AsSpec(env.Subject.Name + "-" + t.token)
@@ -63,10 +95,10 @@ func (t *tokenState) progressBuild(ctx context.Context, env tooling.Env, s *Stat
 		}
 		return nil
 	case tooling.SubresourceExists:
-		if status.Started == nil {
+		if runStatus.Started == nil {
 			return nil
 		}
-		if !status.Healthy {
+		if !runStatus.Healthy {
 			return nil
 		}
 	}
@@ -160,6 +192,16 @@ func (t *tokenState) toStatus() TokenStatus {
 	if !t.depsFuse {
 		out.Stage = TokenStageDependencyWait
 		return out
+	}
+	if t.buildSpec != nil {
+		if !t.build.Created {
+			out.Stage = TokenStageBuilding
+			return out
+		}
+		out.Build = &t.build.Ref
+		if !t.buildFuse {
+			return out
+		}
 	}
 	if !t.run.Created {
 		out.Stage = TokenStageInit
