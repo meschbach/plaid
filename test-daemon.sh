@@ -68,6 +68,7 @@ echo "Running services"
 echo
 # Services
 (cd deps/services
+  rm -f service-a/service client-b/service
   export OTEL_SERVICE_NAME="plaid_services"
   export PLAID_CONFIG=$PWD/plaid.json
   (cd client-b &&  $client up  $client_flags)
