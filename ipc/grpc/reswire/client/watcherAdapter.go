@@ -22,6 +22,11 @@ type wireAdapterHandler struct {
 	parentSpan trace.SpanContext
 }
 
+const (
+	watcherAdapterReady = iota
+	watcherAdapterClosed
+)
+
 // watcherAdapter is a client to fulfill watcher semantics.
 type watcherAdapter struct {
 	wire     reswire.ResourceControllerClient
@@ -33,6 +38,9 @@ type watcherAdapter struct {
 	ackTable     map[uint64]*reswire.WatcherEventOut
 	ackLock      *sync.Mutex
 	ackCondition *sync.Cond
+	//state
+	state     int
+	stateLock *sync.RWMutex
 }
 
 func (w *watcherAdapter) Serve(ctx context.Context) error {
@@ -44,7 +52,7 @@ func (w *watcherAdapter) Serve(ctx context.Context) error {
 			} else {
 				if s, ok := status.FromError(err); ok {
 					if s.Code() == codes.Canceled {
-						if err := w.stream.CloseSend(); err != nil {
+						if err := w.close(); err != nil {
 							return errors.Join(err, suture.ErrDoNotRestart)
 						}
 						return suture.ErrDoNotRestart
@@ -117,7 +125,7 @@ func (w *watcherAdapter) OnType(ctx context.Context, kind resources.Type, consum
 
 	wireTag := uint64(tag)
 	k := reswire.ExternalizeType(kind)
-	if err := w.stream.Send(&reswire.WatcherEventIn{
+	if err := w.emit(&reswire.WatcherEventIn{
 		Tag:    wireTag,
 		OnType: k,
 	}); err != nil {
@@ -143,7 +151,7 @@ func (w *watcherAdapter) OnResource(parent context.Context, ref resources.Meta, 
 
 	wireTag := uint64(tag)
 	wireRef := reswire.MetaToWire(ref)
-	if err := w.stream.Send(&reswire.WatcherEventIn{
+	if err := w.emit(&reswire.WatcherEventIn{
 		Tag:        wireTag,
 		OnResource: wireRef,
 	}); err != nil {
@@ -166,14 +174,50 @@ func (w *watcherAdapter) Off(ctx context.Context, token resources.WatchToken) er
 	}()
 
 	t := true
-	return w.stream.Send(&reswire.WatcherEventIn{
+	return w.emit(&reswire.WatcherEventIn{
 		Tag:    uint64(token),
 		Delete: &t,
 	})
 }
 
+func (w *watcherAdapter) emit(msg *reswire.WatcherEventIn) error {
+	w.stateLock.RLock()
+	defer w.stateLock.RUnlock()
+
+	var err error
+	switch w.state {
+	case watcherAdapterReady:
+		err = w.stream.Send(msg)
+		if err != nil {
+			if grpcStatus, ok := status.FromError(err); ok {
+				if grpcStatus.Message() == "SendMsg called after CloseSend" {
+					//just eat it
+					return w.close()
+				}
+			}
+		}
+	default:
+		//just eat the message
+	}
+	return err
+}
+
 func (w *watcherAdapter) Close(ctx context.Context) error {
-	return w.stream.CloseSend()
+	return w.close()
+}
+
+func (w *watcherAdapter) close() error {
+	w.stateLock.Lock()
+	defer w.stateLock.Unlock()
+
+	switch w.state {
+	case watcherAdapterClosed:
+		//should this really be an error
+		return nil
+	default:
+		w.state = watcherAdapterClosed
+		return w.stream.CloseSend()
+	}
 }
 
 func (w *watcherAdapter) waitOnAck(ctx context.Context, tag uint64) error {
