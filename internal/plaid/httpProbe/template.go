@@ -12,7 +12,7 @@ type TemplateAlpha1 struct {
 	Path string `json:"path"`
 }
 
-func (t *TemplateAlpha1) Instantiate(ctx context.Context, storage *resources.Client, claimedBy resources.Meta, watch *resources.ClientWatcher, onChange func(ctx context.Context) error) (*TemplateState, error) {
+func (t *TemplateAlpha1) Instantiate(ctx context.Context, storage resources.Storage, claimedBy resources.Meta, watch resources.Watcher, onChange func(ctx context.Context) error) (*TemplateState, error) {
 	state := &TemplateState{
 		env: tooling.Env{
 			Subject:   claimedBy,
@@ -34,7 +34,7 @@ type TemplateState struct {
 	ready bool
 }
 
-func (t *TemplateState) Reconcile(ctx context.Context, storage *resources.Client) error {
+func (t *TemplateState) Reconcile(ctx context.Context, storage resources.Storage) error {
 	var status AlphaV1Status
 	resourceStep, err := t.probe.Decide(ctx, t.env, &status)
 	if err != nil {
@@ -64,4 +64,22 @@ func (t *TemplateState) Reconcile(ctx context.Context, storage *resources.Client
 
 func (t *TemplateState) Ready() bool {
 	return t.ready
+}
+
+type TemplateAlpha1Status struct {
+	Ref   *resources.Meta `json:"ref"`
+	Ready bool
+}
+
+func (t *TemplateState) Status() TemplateAlpha1Status {
+	if !t.probe.Created {
+		return TemplateAlpha1Status{
+			Ref:   nil,
+			Ready: false,
+		}
+	}
+	return TemplateAlpha1Status{
+		Ref:   &t.probe.Ref,
+		Ready: t.ready,
+	}
 }

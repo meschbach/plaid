@@ -118,12 +118,14 @@ func (w *WireClientAdapter) Watcher(ctx context.Context) (Watcher, error) {
 		return nil, err
 	}
 	adapter := &watcherAdapter{
-		wire:     w.wire,
-		stream:   wc,
-		tagsLock: &sync.Mutex{},
-		tags:     make(map[resources.WatchToken]*wireAdapterHandler),
-		ackTable: make(map[uint64]*reswire.WatcherEventOut),
-		ackLock:  &sync.Mutex{},
+		wire:      w.wire,
+		stream:    wc,
+		tagsLock:  &sync.Mutex{},
+		tags:      make(map[resources.WatchToken]*wireAdapterHandler),
+		ackTable:  make(map[uint64]*reswire.WatcherEventOut),
+		ackLock:   &sync.Mutex{},
+		state:     watcherAdapterReady,
+		stateLock: &sync.RWMutex{},
 	}
 	adapter.ackCondition = sync.NewCond(adapter.ackLock)
 	w.workPool.Add(adapter)

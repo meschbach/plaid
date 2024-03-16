@@ -1,12 +1,7 @@
 package dependencies
 
 import (
-	"context"
-	"github.com/meschbach/plaid/resources"
+	"github.com/meschbach/plaid/controllers/tooling"
 )
 
-type Env struct {
-	Storage  *resources.Client
-	Watcher  *resources.ClientWatcher
-	OnChange func(ctx context.Context) error
-}
+type Env tooling.Env

@@ -38,12 +38,14 @@ func Perform(ctx context.Context, client *client.Daemon, options Options) error 
 	if options.PrettyJSON {
 		events, err := client.Storage.GetEvents(ctx, ref, resources.AllEvents)
 		type output struct {
+			Meta   resources.Meta    `json:"meta"`
 			Spec   json.RawMessage   `json:"spec"`
 			Status json.RawMessage   `json:"status"`
 			Log    []resources.Event `json:"log"`
 		}
 
 		o := output{
+			Meta:   ref,
 			Spec:   out,
 			Status: status,
 			Log:    events,

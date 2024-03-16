@@ -12,7 +12,7 @@ func (s *System) Observe(ctx context.Context, ref resources.Meta) *Observer {
 		return NewObserver(s)
 	})
 	if created {
-		token, err := s.observer.OnResource(ctx, ref, observer.onResourceEvent)
+		token, err := s.Observer.OnResource(ctx, ref, observer.onResourceEvent)
 		require.NoError(s.t, err)
 		observer.token = token
 	}
@@ -24,7 +24,7 @@ func (s *System) ObserveType(ctx context.Context, kind resources.Type) *Observer
 		return NewObserver(s)
 	})
 	if created {
-		token, err := s.observer.OnType(ctx, kind, observer.onResourceEvent)
+		token, err := s.Observer.OnType(ctx, kind, observer.onResourceEvent)
 		require.NoError(s.t, err)
 		observer.token = token
 	}
@@ -74,8 +74,8 @@ func (o *Observer) consumeEvent(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case e := <-o.system.observer.Events():
-		err := o.system.observer.Digest(ctx, e)
+	case e := <-o.system.Observer.Events():
+		err := o.system.Observer.Digest(ctx, e)
 		return err
 	}
 }

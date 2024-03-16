@@ -8,8 +8,8 @@ import (
 
 type TemplateEnv struct {
 	ClaimedBy resources.Meta
-	Storage   *resources.Client
-	Watcher   *resources.ClientWatcher
+	Storage   resources.Storage
+	Watcher   resources.Watcher
 	OnChange  func(ctx context.Context) error
 }
 
@@ -24,22 +24,30 @@ func (t *TemplateAlpha1Spec) Instantiate(ctx context.Context, env TemplateEnv) (
 	}
 	if t.Http != nil {
 		state, err := t.Http.Instantiate(ctx, env.Storage, env.ClaimedBy, env.Watcher, env.OnChange)
-		return state, err
+		adapter := &httpAdapter{state: state}
+		return adapter, err
 	}
 	return &alwaysReady{}, nil
 }
 
 type TemplateAlpha1State interface {
-	Reconcile(ctx context.Context, storage *resources.Client) error
+	Reconcile(ctx context.Context, storage resources.Storage) error
 	Ready() bool
+	Status() TemplateAlpha1Status
 }
 
 type alwaysReady struct{}
 
-func (a *alwaysReady) Reconcile(ctx context.Context, storage *resources.Client) error {
+func (a *alwaysReady) Reconcile(ctx context.Context, storage resources.Storage) error {
 	return nil
 }
 
 func (a *alwaysReady) Ready() bool {
 	return true
+}
+
+func (a *alwaysReady) Status() TemplateAlpha1Status {
+	return TemplateAlpha1Status{
+		Ready: true,
+	}
 }

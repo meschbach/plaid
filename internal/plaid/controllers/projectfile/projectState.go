@@ -79,6 +79,7 @@ func (p *projectState) create(ctx context.Context, env stateEnv, spec Alpha1Spec
 	p.created = true
 	subspec := project.Alpha1Spec{
 		BaseDirectory: spec.WorkingDirectory,
+		WatchFiles:    config.WatchFiles,
 	}
 	if config.IsOneShot() {
 		oneShotSpec := project.Alpha1OneShotSpec{

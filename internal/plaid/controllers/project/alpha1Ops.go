@@ -17,8 +17,9 @@ const annotationRunTypeDaemon = "daemon"
 const annotationName = Kind + ":name"
 
 type alpha1Ops struct {
-	client  *resources.Client
-	watcher *resources.ClientWatcher
+	client            *resources.Client
+	watcher           *resources.ClientWatcher
+	defaultWatchFiles bool
 }
 
 func (a *alpha1Ops) Create(ctx context.Context, which resources.Meta, spec Alpha1Spec, bridge *operator.KindBridgeState) (*state, Alpha1Status, error) {
@@ -27,6 +28,7 @@ func (a *alpha1Ops) Create(ctx context.Context, which resources.Meta, spec Alpha
 		oneShots: make(map[string]*oneShotState),
 		daemons:  make(map[string]*daemonState),
 	}
+	runtime.fileWatch.basePath = spec.BaseDirectory
 	status, err := a.Update(ctx, which, runtime, spec)
 	return runtime, status, err
 }
@@ -39,7 +41,12 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 	))
 	defer span.End()
 
-	status := Alpha1Status{}
+	//resolve watch files question
+	rt.fileWatch.updateSpec(spec.WatchFiles, a.defaultWatchFiles, spec.BaseDirectory)
+
+	status := Alpha1Status{
+		RestartToken: rt.restartToken,
+	}
 
 	//for each one shot
 	env := tooling.Env{
@@ -50,6 +57,12 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 			return rt.bridge.OnResourceChange(ctx, which)
 		},
 	}
+
+	if err := rt.fileWatch.reconcile(ctx, env); err != nil {
+		return status, err
+	}
+	status.RestartToken = rt.fileWatch.restartToken
+	status.WatchFiles = rt.fileWatch.toStatus()
 
 	var oneShotErrors []error
 	incompleteOneShots := 0
@@ -112,6 +125,9 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 		}
 
 		daemonStatus := &Alpha1DaemonStatus{}
+		if rt.fileWatch.restart {
+			subController.updateRestartToken(rt.fileWatch.restartToken)
+		}
 		if next, err := subController.decideNextStep(ctx, env); err != nil {
 			span.SetStatus(codes.Error, "failure while determine daemon state")
 			span.RecordError(err)
@@ -139,11 +155,22 @@ func (a *alpha1Ops) Update(parent context.Context, which resources.Meta, rt *sta
 			case daemonFinished:
 				span.AddEvent("daemon-finished")
 				//todo: restart?
+			case daemonUpdate:
+				err := subController.update(ctx, env, spec, daemonSpec)
+				if err != nil {
+					span.SetStatus(codes.Error, "failed to update daemon")
+					span.RecordError(err)
+					daemonErrors = append(daemonErrors, err)
+					continue
+				}
+			default:
+				panic("unexpected daemon condition")
 			}
 			status.Daemons = append(status.Daemons, daemonStatus)
 		}
 	}
 	span.SetAttributes(attribute.Bool("daemons.ready", allDaemonsReady))
+	status.RestartToken = rt.restartToken
 
 	//todo: clean up tests and put this under test
 	status.Ready = incompleteOneShots == 0 && allDaemonsReady
@@ -172,4 +199,9 @@ type state struct {
 	bridge   *operator.KindBridgeState
 	oneShots map[string]*oneShotState
 	daemons  map[string]*daemonState
+
+	//restartToken is the current token for restarting associated services.
+	restartToken string
+
+	fileWatch watchFilesState
 }

@@ -40,6 +40,9 @@ func (d *DependencyState) Reconcile(parent context.Context, env Env) (ready bool
 	case nextStepWatch:
 		span.AddEvent("dependency-watch")
 		problem := d.watch(ctx, env)
+		if problem != nil {
+			span.SetStatus(codes.Error, "watch error")
+		}
 		return false, problem
 	default:
 		panic(fmt.Sprintf("unknown next step %d", step))
@@ -90,17 +93,12 @@ func (d *DependencyState) decideNextStep(ctx context.Context, env Env) (dependen
 
 func (d *DependencyState) watch(ctx context.Context, env Env) error {
 	token, problem := env.Watcher.OnResourceStatusChanged(ctx, d.ref, func(ctx context.Context, changed resources.ResourceChanged) error {
-		switch changed.Operation {
-		case resources.StatusUpdated:
-			return env.OnChange(ctx)
-		default:
-			return nil
-		}
+		return env.Reconcile(ctx)
 	})
 	if problem != nil {
 		return problem
 	}
 	d.watching = true
 	d.watchToken = token
-	return env.OnChange(ctx)
+	return env.Reconcile(ctx)
 }

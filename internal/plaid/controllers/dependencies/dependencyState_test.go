@@ -31,7 +31,7 @@ func TestDependencyState(t *testing.T) {
 		env := Env{
 			Storage: world.Store,
 			Watcher: watcher,
-			OnChange: func(ctx context.Context) error {
+			Reconcile: func(ctx context.Context) error {
 				reconciledCalledCount++
 				return nil
 			},

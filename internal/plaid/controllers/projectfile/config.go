@@ -19,6 +19,9 @@ type Configuration struct {
 	Requires []string                `json:"requires"`
 	Liveness *LivenessConfiguration  `json:"liveness"`
 	Ports    *map[string]json.Number `json:"ports"`
+	//WatchFiles will watch for changes of files and update the the restart token for each associated service or
+	//batch process
+	WatchFiles *bool `json:"watch-files"`
 }
 
 func (c Configuration) IsOneShot() bool {

@@ -178,18 +178,20 @@ func (c *ClientWatcher) OnResourceStatusChanged(parent context.Context, which Me
 
 	token, err := c.addFilter(filter, consumer)
 	if err != nil {
+		span.SetStatus(codes.Error, "failed to add filter")
 		return 0, err
 	}
 
 	select {
 	case <-ctx.Done():
+		span.SetStatus(codes.Error, "context cancelled")
 		return 0, ctx.Err()
 	case c.res.dataPlane <- &watcherAddStatusChangedOp{
 		watchID: c.watcherID,
 		which:   which,
 	}:
 	}
-	return token, err
+	return token, nil
 }
 
 func (c *ClientWatcher) Off(ctx context.Context, token WatchToken) error {

@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"github.com/meschbach/plaid/controllers/filewatch/fsn"
+	serviceAlpha2 "github.com/meschbach/plaid/controllers/service/alpha2"
 	"github.com/meschbach/plaid/internal/plaid/controllers/buildrun"
 	localexec "github.com/meschbach/plaid/internal/plaid/controllers/exec/local"
 	"github.com/meschbach/plaid/internal/plaid/controllers/logdrain"
@@ -63,12 +64,15 @@ func (b *bundledServices) attachV0_2_0() {
 	b.Supervisor.Add(localProcSupervisors)
 
 	//todo: really devxp type stuff
-	projectSystem := project.NewProjectSystem(b.resources)
+	projectSystem := project.NewProjectSystem(b.resources, project.ControllerOpts{
+		DefaultWatchFiles: true,
+	})
 	b.Supervisor.Add(projectSystem)
 	localProjectFileSystem := projectfile.NewProjectFileSystem(b.resources)
 	b.Supervisor.Add(localProjectFileSystem)
 	b.Supervisor.Add(buildrun.NewSystem(b.resources))
 	b.Supervisor.Add(service.NewSystem(b.resources))
+	b.Supervisor.Add(serviceAlpha2.NewController(resourceSystem))
 }
 
 func (b *bundledServices) attachV0_1_0() {

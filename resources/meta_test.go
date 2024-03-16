@@ -20,4 +20,21 @@ func TestMeta(t *testing.T) {
 			assert.True(t, MetaSliceContains(example, example[1]), "meta slice contains an element within")
 		})
 	})
+
+	t.Run("Meta Validity", func(t *testing.T) {
+		t.Run("Given a default meat", func(t *testing.T) {
+			var meta Meta
+			assert.False(t, meta.Valid())
+		})
+
+		t.Run("Given a fake type without a name", func(t *testing.T) {
+			ref := FakeMetaOf(Type{})
+			assert.False(t, ref.Valid())
+		})
+
+		t.Run("Given a valid ref", func(t *testing.T) {
+			ref := FakeMeta()
+			assert.True(t, ref.Valid())
+		})
+	})
 }

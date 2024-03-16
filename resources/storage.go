@@ -24,6 +24,11 @@ type Storage interface {
 type Watcher interface {
 	OnType(ctx context.Context, kind Type, consume OnResourceChanged) (WatchToken, error)
 	OnResource(ctx context.Context, ref Meta, consume OnResourceChanged) (WatchToken, error)
+
+	//OnResourceStatusChanged registers an event handler when either the status is changed or the resource is deleted.
+	//This allows for optimizations within the watcher subsystem to only observe a subset of event.
+	//todo: reconsider if this is better in a wrapper or at a different level. quickly explodes in complexity
+	OnResourceStatusChanged(ctx context.Context, ref Meta, consume OnResourceChanged) (WatchToken, error)
 	Off(ctx context.Context, token WatchToken) error
 	Close(ctx context.Context) error
 	Events() chan ResourceChanged

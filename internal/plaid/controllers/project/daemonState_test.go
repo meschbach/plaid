@@ -3,50 +3,47 @@ package project
 import (
 	"context"
 	"github.com/go-faker/faker/v4"
+	"github.com/meschbach/plaid/controllers/service/alpha2"
 	"github.com/meschbach/plaid/controllers/tooling"
-	"github.com/meschbach/plaid/internal/plaid/controllers/service"
 	"github.com/meschbach/plaid/resources"
+	"github.com/meschbach/plaid/resources/optest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
 
+func envFrom(plaid *optest.System, subject resources.Meta) tooling.Env {
+	return tooling.Env{
+		Subject: subject,
+		Storage: plaid.Storage,
+		Watcher: plaid.Observer,
+		Reconcile: func(ctx context.Context) error {
+			return nil
+		},
+	}
+}
+
 func TestDaemonState(t *testing.T) {
 	t.Run("Given a new project space", func(t *testing.T) {
-		testCtx, done := context.WithCancel(context.Background())
-		t.Cleanup(done)
+		_, plaid := optest.New(t)
 
-		plaid := resources.WithTestSubsystem(t, testCtx)
-		watcher, err := plaid.Store.Watcher(testCtx)
-		require.NoError(t, err)
-
-		reconciled := 0
 		exampleProject := resources.Meta{Type: Alpha1, Name: faker.Name()}
-		env := tooling.Env{
-			Subject: exampleProject,
-			Storage: plaid.Store,
-			Watcher: watcher,
-			Reconcile: func(ctx context.Context) error {
-				reconciled++
-				return nil
-			},
-		}
 
 		daemon := &daemonState{}
 
 		exampleDaemonSpec := Alpha1DaemonSpec{}
 		exampleSpec := Alpha1Spec{}
 
-		t.Run("When asked for next steps", func(t *testing.T) {
-			step, err := daemon.decideNextStep(testCtx, env)
+		plaid.Run("When asked for next steps", func(t *testing.T, plaid *optest.System, ctx context.Context) {
+			step, err := daemon.decideNextStep(ctx, envFrom(plaid, exampleProject))
 			require.NoError(t, err)
 			assert.Equal(t, daemonCreate, step, "Then we will create our resources")
 		})
 
-		t.Run("When Created", func(t *testing.T) {
-			err := daemon.create(testCtx, env, exampleSpec, exampleDaemonSpec)
+		plaid.Run("When Created", func(t *testing.T, plaid *optest.System, ctx context.Context) {
+			err := daemon.create(ctx, envFrom(plaid, exampleProject), exampleSpec, exampleDaemonSpec)
 			require.NoError(t, err)
-			step, err := daemon.decideNextStep(testCtx, env)
+			step, err := daemon.decideNextStep(ctx, envFrom(plaid, exampleProject))
 			require.NoError(t, err)
 
 			assert.Equal(t, daemonWait, step, "Then the next step is wait, got %s", step)
@@ -56,14 +53,17 @@ func TestDaemonState(t *testing.T) {
 			assert.False(t, status.Ready, "Then it is not ready")
 		})
 
-		t.Run("When daemon has become ready", func(t *testing.T) {
-			exists, err := plaid.Store.UpdateStatus(testCtx, daemon.service.Ref, service.Alpha1Status{
-				Ready: true,
+		plaid.Run("When daemon has become ready", func(t *testing.T, plaid *optest.System, ctx context.Context) {
+			plaid.MustUpdateStatus(ctx, daemon.service.Ref, alpha2.Status{
+				LatestToken: "",
+				Ready:       true,
+				Stable: &alpha2.TokenStatus{
+					Token: "",
+					Ready: true,
+				},
 			})
-			require.NoError(t, err, "failed to update status to ready")
-			require.True(t, exists, "must exist")
 
-			step, err := daemon.decideNextStep(testCtx, env)
+			step, err := daemon.decideNextStep(ctx, envFrom(plaid, exampleProject))
 			require.NoError(t, err)
 
 			assert.Equal(t, daemonWait, step, "Then the next step is to wait")
