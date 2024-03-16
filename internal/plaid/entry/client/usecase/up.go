@@ -92,12 +92,8 @@ func Up(ctx context.Context, daemon *client.Daemon, rt *client2.Runtime, opts Up
 			return err
 		}
 		if !exists {
-			span.SetStatus(codes.Error, "missing")
-			err := errors.New("gone missing")
-			if offErr := w.Off(ctx, token); offErr != nil {
-				return errors.Join(offErr, err)
-			}
-			return err
+			fmt.Printf("%s went missing\n", ref)
+			return nil
 		}
 		if opts.ReportUpdates {
 			j, err := json.Marshal(status)
